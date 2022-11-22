@@ -28,6 +28,6 @@ jobs:
         context: .
         file: ./docker/Dockerfile
         push: true
-        tags: ghcr.io/NaegleLab/proteome-scout-3:latest
+        tags: ${{ github.sha }}:latest
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
