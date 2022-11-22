@@ -28,6 +28,6 @@ jobs:
         context: .
         file: ./docker/Dockerfile
         push: true
-        tags: ${{ github.sha }}:latest
+        tags: ${{ env.REGISTRY }}/${{ github.repository }}:latest
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
