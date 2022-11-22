@@ -28,6 +28,6 @@ jobs:
         context: .
         file: ./docker/Dockerfile
         push: true
-        tags: ghcr.io$/naeglelab/${{ github.repository }}:latest
+        tags: ghcr.io$/${{ github.repository.lowercase }}:latest
     - name: Image digest
       run: echo ${{ steps.docker_build.outputs.digest }}
