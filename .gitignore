@@ -1,0 +1,4 @@
+/env38/
+/.project
+*.pyc
+/app.db
