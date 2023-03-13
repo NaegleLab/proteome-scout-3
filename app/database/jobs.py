@@ -158,6 +158,9 @@ class Job(db.Model):
         self.status = JobStatusEnum.finished
         self.finished = datetime.datetime.now()
         
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
         
 class NoSuchJob(Exception):
     def __init__(self, jid):
