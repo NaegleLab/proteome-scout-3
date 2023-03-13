@@ -2,3 +2,4 @@
 /.project
 *.pyc
 /app.db
+.DS_Store
