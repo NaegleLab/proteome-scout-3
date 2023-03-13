@@ -141,6 +141,7 @@ app = create_app()
 # def get_locale():
 #     return request.accept_languages.best_match(current_app.config['LANGUAGES'])
 
+# import worker files here if you want them to show up in celery as registered tasks
 from proteomescout_worker import notify_tasks
 
 from app.database import user
