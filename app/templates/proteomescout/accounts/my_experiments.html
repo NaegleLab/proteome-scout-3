@@ -63,6 +63,21 @@
                             <th>Status</th>
                         </tr>
                     </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.name }}</td>
+                            <td>{{ job.created }}</td>
+                            <td>{{ job.started() }}</td>
+                            <td>{{ job.finished_time() }}</td>
+                            {% if job.status == 'started' %}
+                                <td>Processing : {{ job.stage }}</td>
+                            {% else %}
+                                <td>{{ job.status }}</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>                    
                 </table>
             </div>
         </div>

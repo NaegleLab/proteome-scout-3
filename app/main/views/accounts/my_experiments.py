@@ -4,4 +4,15 @@ from flask_login import current_user
 
 @bp.route('/experiments', methods=['GET', 'POST'])
 def manage_experiments():
-    return render_template('proteomescout/accounts/my_experiments.html')
+    if current_user.is_authenticated:
+        user = current_user
+
+        jobs = user.jobs
+
+        return render_template(
+            'proteomescout/accounts/my_experiments.html',
+            jobs = jobs,
+        )
+
+    else:
+        return render_template('proteomescout/accounts/my_experiments.html')
