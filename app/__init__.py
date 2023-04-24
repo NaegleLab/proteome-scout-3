@@ -82,7 +82,10 @@ def create_app(config_class=Config, celery=celery):
     app.register_blueprint(exp_bp, url_prefix = '/experiments')
 
     from app.main.views.upload import bp as upload_bp
-    app.register_blueprint(upload_bp, url_prefix = "/upload")
+    app.register_blueprint(upload_bp, url_prefix = '/upload')
+
+    from app.main.views.files import bp as  compendia_bp
+    app.register_blueprint(compendia_bp, url_prefix = '/compendia')
 
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
@@ -142,6 +145,6 @@ app = create_app()
 #     return request.accept_languages.best_match(current_app.config['LANGUAGES'])
 
 # import worker files here if you want them to show up in celery as registered tasks
-from proteomescout_worker import notify_tasks
+from proteomescout_worker import notify_tasks, export_tasks
 
 from app.database import user
