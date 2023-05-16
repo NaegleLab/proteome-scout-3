@@ -169,7 +169,7 @@
         <p>ProteomeScout is a database of proteins and post-translational modifications. There are two main data types in ProteomeScout.</p>
         <p>1) Proteins: Visualize proteins or annotate your own proteins.</p>
         <p>2) Experiments: You can load a new experiment or browse and analyze an existing experiment.</p>
-        <p>Getting Started: Try visualizing the protein <a href="${request.route_url('protein_viewer', id=52355)}">EGFR</a> or exploring <a href="${request.route_url('experiment_summary', id=1386)}">this experiment</a>.
+        <p>Getting Started: Try visualizing the protein <a href="{{ url_for('protein.structure', protein_id=52355) }}">EGFR</a> or exploring <a href="${request.route_url('experiment_summary', id=1386)}">this experiment</a>.
     </div>
 </div>
 

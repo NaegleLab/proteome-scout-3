@@ -176,7 +176,7 @@ class Protein(db.Model):
     accessions = db.relationship("ProteinAccession", order_by=ProteinAccession.type, cascade="all,delete-orphan")
     domains = db.relationship("ProteinDomain")
     
-    species = db.relationship("Species")
+    species = db.relationship("Species", lazy='joined')
     GO_terms = db.relationship("GeneOntologyEntry", lazy='joined')
     expression_probes = db.relationship("ExpressionProbeset", secondary=expression_association_table)
     mutations = db.relationship("Mutation", cascade="all,delete-orphan")

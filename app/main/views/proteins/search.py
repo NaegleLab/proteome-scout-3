@@ -1,18 +1,24 @@
 from app.config import strings
-from flask import render_template, redirect, request
-# from flask_paginate import Pagination, get_page_parameter
+from app import celery
+from flask import render_template, redirect, request, jsonify
 from flask_login import current_user
 from app.main.views.proteins import bp
 from app.database import protein, modifications
+from celery.result import AsyncResult
 
 from app.main.forms.search_form import ProteinSearchForm
 
 
-def perform_query(form):
-    search = form.protein.data
-    peptide = form.peptide.data
-    species = form.species.data
-    protein_names = form.protein_names.data
+@celery.task
+def perform_queries(search, peptide, species, protein_names, user):
+    proteins = protein_query(search, peptide, species, protein_names)
+    metadata = {}
+    for p in proteins:
+        metadata[p.id] = get_peptides_by_proteins(p.id, user)
+    
+    return [proteins, metadata]
+    
+def protein_query(search, peptide, species, protein_names):
 
     if search == '':
         search = None
@@ -23,9 +29,6 @@ def perform_query(form):
     if species == 'all' or species == '':
         species = None
 
-    
-    
-    
     protein_cnt, proteins = protein.search_proteins(
         search=search,
         species=species,
@@ -34,14 +37,11 @@ def perform_query(form):
         exp_id=None,
         includeNames=protein_names)
 
-    return  proteins
+    return proteins
 
 
-
-def get_protein_metadata(prot, metadata_map, user, exp_id=None):
-    
-
-    measured = modifications.get_measured_peptides_by_protein(prot.id, user)
+def get_peptides_by_proteins(prot_id, user, exp_id=None):
+    measured = modifications.get_measured_peptides_by_protein(prot_id, user)
 
     exp_ids = set()
     residues = set()
@@ -59,14 +59,57 @@ def get_protein_metadata(prot, metadata_map, user, exp_id=None):
             residues.add(mspep.peptide.site_type)
             sites.add(mspep.peptide.site_pos)
             ptms.add(mspep.modification.name)
+    
+    return [exp_ids, sites, residues, ptms]
 
-    metadata_map[prot.id] = (
-        prot,
-        len(prot.sequence),
+
+def get_protein_metadata(prot, metadata_map, exp_ids, sites, residues, ptms):
+
+    # exp_ids = set()
+    # residues = set()
+    # ptms = set()
+    # sites = set()
+
+    # for ms in measured:
+    #     exp_ids.add(ms.experiment_id)
+
+    # if exp_id:
+    #     measured = [ms for ms in measured if ms.experiment_id == exp_id]
+
+    # for ms in measured:
+    #     for mspep in ms.peptides:
+    #         residues.add(mspep.peptide.site_type)
+    #         sites.add(mspep.peptide.site_pos)
+    #         ptms.add(mspep.modification.name)
+
+    prot_id = prot.id
+    prot_name = prot.name
+    prot_gene = prot.get_gene_name()
+    prot_species = prot.species.name
+    prot_sequence = prot.sequence
+
+    metadata_map[prot_id] = [
+        prot_name,
+        prot_gene,
+        prot_species,
+        len(prot_sequence),
         len(exp_ids),
         len(sites),
         ','.join(residues),
-        ', '.join(ptms))
+        ', '.join(ptms)]
+
+
+def generate_metadata(result):
+        proteins = result[0]
+        protein_metadata = {}
+        for p in proteins:
+            async_metadata = result[1][p.id]
+            exp_ids = async_metadata[0]
+            sites = async_metadata[1]
+            residues = async_metadata[2]
+            ptms = async_metadata[3]
+            get_protein_metadata(p, protein_metadata, exp_ids, sites, residues, ptms)
+        return protein_metadata
 
 
 @bp.route('/', methods=['GET', 'POST'])
@@ -78,24 +121,30 @@ def search():
     user = current_user if current_user.is_authenticated else None
 
     if form.validate_on_submit():
-        # return redirect(url_for('protein_bp.search'))
         
-        proteins = perform_query(form)
-        protein_metadata = {}
-        for p in proteins:
-            get_protein_metadata(p, protein_metadata, user)
+        search = form.protein.data
+        peptide = form.peptide.data
+        species = form.species.data
+        protein_names = form.protein_names.data
+    
+        task = perform_queries.delay(search, peptide, species, protein_names, user)
+        
+        return jsonify({'task_id': task.id})
 
-        # pagination = Pagination(page=page, total=len(protein_metadata), search=search, record_name='proteins')
-
-        return render_template(
-            'proteomescout/proteins/search.html',
-            title=strings.protein_search_page_title,
-            form=form,
-            data=protein_metadata,
-            # pagination=pagination
-            )
-
+        
     return render_template(
         'proteomescout/proteins/search.html', 
         title=strings.protein_search_page_title, 
         form=form)
+
+
+@bp.route('/search_status/<task_id>', methods=['GET'])
+def search_status(task_id):
+    task = AsyncResult(task_id, app=celery)
+    
+    response = {
+        'state': task.state,
+    }
+    if task.state=='SUCCESS':
+        response['result'] = generate_metadata(task.result)
+    return jsonify(response)

@@ -134,17 +134,15 @@ app = create_app()
 # moment = Moment()
 # babel = Babel()
 
-
-
-# @celery.task
-# def add(x, y):
-#     return x+y
-
 # @babel.localeselector
 # def get_locale():
 #     return request.accept_languages.best_match(current_app.config['LANGUAGES'])
 
+
 # import worker files here if you want them to show up in celery as registered tasks
+from app.main.views.proteins.search import perform_queries
 from proteomescout_worker import notify_tasks, export_tasks
+
+from scripts.export import test_task
 
 from app.database import user
