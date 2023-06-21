@@ -1,7 +1,9 @@
 from app import celery
 import logging
 from proteomescout_worker import notify_tasks
-from proteomescout_worker.helpers import upload_helpers, entrez_tools, pfam_tools, picr_tools, uniprot_tools, dbsnp_tools
+# changed to see if celery works with the new line since we're currently not using the other modules
+# from proteomescout_worker.helpers import upload_helpers, entrez_tools, pfam_tools, picr_tools, uniprot_tools, dbsnp_tools
+from proteomescout_worker.helpers import upload_helpers, entrez_tools, uniprot_tools
 from app.database import protein, experiment
 from app.config import strings
 from app.utils import uploadutils
@@ -193,7 +195,7 @@ def get_proteins_by_accession(accessions, start_callback, notify_callback):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.transaction_task
-def get_proteins_from_external_databases(ignored, accessions, line_mapping, exp_id, job_id):
+def get_proteins_from_external_databases(accessions, line_mapping, exp_id, job_id):
     def start_callback(total_task_cnt):
         notify_tasks.set_job_stage.apply_async((job_id, 'query', total_task_cnt))
     def notify_callback(i, total_task_cnt, errors):
