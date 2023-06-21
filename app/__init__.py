@@ -143,6 +143,4 @@ app = create_app()
 from app.main.views.proteins.search import perform_queries
 from proteomescout_worker import notify_tasks, export_tasks
 
-from proteomescout_worker import notify_tasks
-
 from app.database import user
