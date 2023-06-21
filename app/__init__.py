@@ -142,6 +142,4 @@ app = create_app()
 # import worker files here if you want them to show up in celery as registered tasks
 from app.main.views.proteins.search import perform_queries
 
-from scripts.export import test_task
-
 from app.database import user
