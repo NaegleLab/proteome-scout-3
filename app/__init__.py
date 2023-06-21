@@ -142,4 +142,6 @@ app = create_app()
 # import worker files here if you want them to show up in celery as registered tasks
 from app.main.views.proteins.search import perform_queries
 
+from proteomescout_worker import notify_tasks
+
 from app.database import user
