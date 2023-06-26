@@ -5,7 +5,7 @@ $(document).ready(function() {
         //var query = $('#query').val();
         $.ajax({
             type: 'POST',
-            url: '/proteins',
+            url: '/proteins/',
             data: $('form').serialize(),
             success: function (data) {
                 var task_id = data.task_id;
