@@ -33,24 +33,47 @@ $(document).ready(function() {
             type: 'GET',
             url: '/proteins/search_status/' + task_id,
             success: function (data) {
-                if (data.state == 'SUCCESS') {
-                    // task is complete, show the results
-                    const loader = document.querySelector(".loader");
-                    loader.classList.add("loader-hidden");
-                    loader.addEventListener("transitioned", () => {
-                        const searchResultsDiv = document.getElementById('search-results');
-                        searchResultsDiv.removeChild("loader");
-                    })
-                    console.log("Results succesful");
-                    console.log(data.result);
-                    show_results(data.result);
-                } else {
-                    // task is not complete, check again in 1 second
-                    console.log('Results for ' + task_id + ' are currently unavailable')
-                    setTimeout(function() {
-                        check_task_status(task_id);
-                    }, 1000);
+                switch (data.state) {
+                    case 'SUCCESS':
+                        // task is complete, show the results
+                        const loader = document.querySelector(".loader");
+                        loader.classList.add("loader-hidden");
+                        loader.addEventListener("transitioned", () => {
+                            const searchResultsDiv = document.getElementById('search-results');
+                            searchResultsDiv.removeChild("loader");
+                        })
+                        console.log("Results succesful");
+                        console.log(data.result);
+                        show_results(data.result);
+                    case 'PENDING':
+                        // task is not complete, check again in 1 second
+                        console.log('Results for ' + task_id + ' are currently unavailable')
+                        setTimeout(function() {
+                            check_task_status(task_id);
+                        }, 1000);
+                    case 'FAILURE':
+                        // task failed
+                        console.log('The search query failed')                                                    
                 }
+                // if (data.state == 'SUCCESS') {
+                //     // task is complete, show the results
+                //     const loader = document.querySelector(".loader");
+                //     loader.classList.add("loader-hidden");
+                //     loader.addEventListener("transitioned", () => {
+                //         const searchResultsDiv = document.getElementById('search-results');
+                //         searchResultsDiv.removeChild("loader");
+                //     })
+                //     console.log("Results succesful");
+                //     console.log(data.result);
+                //     show_results(data.result);
+                // } else {
+                //     console.log(data.state)
+                //     // task is not complete, check again in 1 second
+                //     console.log('Results for ' + task_id + ' are currently unavailable')
+                //     setTimeout(function() {
+                //         check_task_status(task_id);
+                //     }, 1000);
+                // }
             },
             error: function () {
                 console.error('Something went wrong with the check_task_status function');
