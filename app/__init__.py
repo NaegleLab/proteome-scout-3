@@ -90,13 +90,13 @@ def create_app(config_class=Config, celery=celery):
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
 
-    if (app.config['DEBUG']):
-        app.debug = True
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-    logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
-                        format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+    # if (app.config['DEBUG']):
+    #     app.debug = True
+    #     log_level = logging.DEBUG
+    # else:
+    #     log_level = logging.INFO
+    # logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
+    #                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
     
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:

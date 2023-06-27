@@ -1,5 +1,5 @@
 from app.config import strings
-from app import celery, logger
+from app import celery
 from flask import render_template, redirect, request, jsonify
 from flask_login import current_user
 from app.main.views.proteins import bp
