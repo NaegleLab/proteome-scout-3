@@ -10,11 +10,11 @@ from app.main.forms.search_form import ProteinSearchForm
 
 
 @celery.task
-def perform_queries(search, peptide, species, protein_names, user):
+def perform_queries(search, peptide, species, protein_names):
     proteins = protein_query(search, peptide, species, protein_names)
     metadata = {}
     for p in proteins:
-        metadata[p.id] = get_peptides_by_proteins(p.id, user)
+        metadata[p.id] = get_peptides_by_proteins(p.id)
     
     return [proteins, metadata]
     
@@ -40,8 +40,8 @@ def protein_query(search, peptide, species, protein_names):
     return proteins
 
 
-def get_peptides_by_proteins(prot_id, user, exp_id=None):
-    measured = modifications.get_measured_peptides_by_protein(prot_id, user)
+def get_peptides_by_proteins(prot_id, exp_id=None):
+    measured = modifications.get_measured_peptides_by_protein(prot_id)
 
     exp_ids = set()
     residues = set()
@@ -127,7 +127,7 @@ def search():
         species = form.species.data
         protein_names = form.protein_names.data
     
-        task = perform_queries.delay(search, peptide, species, protein_names, user)
+        task = perform_queries.delay(search, peptide, species, protein_names)
         
         return jsonify({'task_id': task.id})
 

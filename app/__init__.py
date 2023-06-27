@@ -90,6 +90,14 @@ def create_app(config_class=Config, celery=celery):
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
 
+    # if (app.config['DEBUG']):
+    #     app.debug = True
+    #     log_level = logging.DEBUG
+    # else:
+    #     log_level = logging.INFO
+    # logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
+    #                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+    
     if not app.debug and not app.testing:
         if app.config['MAIL_SERVER']:
             auth = None
@@ -145,3 +153,30 @@ from app.main.views.proteins.search import perform_queries
 from proteomescout_worker import notify_tasks
 
 from app.database import user
+
+# import logging 
+# if (app.config['DEBUG']):
+#     app.debug = True
+#     log_level = logging.DEBUG
+# else:
+#     log_level = logging.INFO
+
+# logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
+#                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+
+# except Exception as ex:
+#         app.log_exception(ex)
+#         print(ex)
+#         raise ex
+
+# try:
+#       return make_response(jsonify("User block request      submitted"), 200)
+# except Exception as ex:
+#             app.log_exception(ex)
+#             return make_response(jsonify(
+#                 {
+#                     "status": "error",
+#                     "message": "Couldn't handle user block request: "+str(ex)
+#                 }
+#             ), 400)
+
