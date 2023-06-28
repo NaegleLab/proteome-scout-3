@@ -19,6 +19,7 @@ from celery import Celery
 
 
 access_key = Config.CELERY_ACCESS_KEY
+print(access_key)
 secret_key = Config.CELERY_SECRET_ACCESS_KEY
 queue_url = Config.QUEUE_URL
 broker_transport_options = {
