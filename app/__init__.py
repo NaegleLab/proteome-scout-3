@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from .celery_utils import init_celery
+from kombu.utils.url import safequote
 # from . import flask_celery
 # from flask_mail import Mail
 # from flask_bootstrap import Bootstrap
@@ -19,7 +20,6 @@ from celery import Celery
 
 
 access_key = Config.CELERY_ACCESS_KEY
-print(access_key)
 secret_key = Config.CELERY_SECRET_ACCESS_KEY
 queue_url = Config.QUEUE_URL
 broker_transport_options = {
@@ -33,7 +33,12 @@ broker_transport_options = {
 }
 def make_celery(app_name=__name__):
     result_backend = Config.result_backend
-    broker_url = Config.CELERY_BROKER_URL
+    aws_access_key = safequote(access_key)
+    aws_secret_key = safequote(secret_key)
+    #broker_url = Config.CELERY_BROKER_URL
+    broker_url = "sqs://{aws_access_key}:{aws_secret_key}@".format(
+        aws_access_key=aws_access_key, aws_secret_key=aws_secret_key,
+    )
     celery = Celery(app_name, backend=result_backend, broker=broker_url, )
     return celery
 

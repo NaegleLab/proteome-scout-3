@@ -6,8 +6,8 @@ def init_celery(celery, app):
         enable_utc = False,
         timezone = 'America/New_York'
     )
-    celery.conf.task_track_started = True
-    celery.conf.worker_send_task_events = True
+    # celery.conf.task_track_started = True
+    # celery.conf.worker_send_task_events = True
 
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
