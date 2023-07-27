@@ -1,6 +1,6 @@
 from app.config import strings
 from app import celery
-from flask import render_template, redirect, request, jsonify
+from flask import render_template, redirect, request, jsonify, current_app
 from flask_login import current_user
 from app.main.views.proteins import bp
 from app.database import protein, modifications
@@ -17,6 +17,10 @@ def perform_queries(search, peptide, species, protein_names):
         metadata[p.id] = get_peptides_by_proteins(p.id)
     
     return [proteins, metadata]
+    # except Exception as ex:
+    #     app.log_exception(ex)
+    #     print(ex)
+    #     raise ex
     
 def protein_query(search, peptide, species, protein_names):
 
@@ -41,6 +45,7 @@ def protein_query(search, peptide, species, protein_names):
 
 
 def get_peptides_by_proteins(prot_id, exp_id=None):
+    print('get_peptides_by_proteins invoked')
     measured = modifications.get_measured_peptides_by_protein(prot_id)
 
     exp_ids = set()
@@ -114,6 +119,7 @@ def generate_metadata(result):
 
 @bp.route('/', methods=['GET', 'POST'])
 def search():
+    # try:
     search = False
     # page = request.args.get(get_page_parameter(), type=int, default=1)
 
@@ -128,9 +134,13 @@ def search():
         protein_names = form.protein_names.data
     
         task = perform_queries.delay(search, peptide, species, protein_names)
+        current_app.logger.info('perform_queries task sent to queue')
         
         return jsonify({'task_id': task.id})
-
+    # except Exception as ex:
+    #     app.log_exception(ex)
+    #     print(ex)
+    #     raise ex
         
     return render_template(
         'proteomescout/proteins/search.html', 
@@ -146,5 +156,6 @@ def search_status(task_id):
         'state': task.state,
     }
     if task.state=='SUCCESS':
+        current_app.logger.info('Search task [' + str(task_id) + '] succeeded')
         response['result'] = generate_metadata(task.result)
     return jsonify(response)

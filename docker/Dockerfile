@@ -19,7 +19,7 @@ RUN pip3 install -r requirements.txt \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/* && \
     echo "daemon off;" >> /etc/nginx/nginx.conf
-
+RUN mkdir -p logs
 EXPOSE 5000
 ENV FLASK_APP app/__init__.py
 ENV FLASK_DEBUG 0
