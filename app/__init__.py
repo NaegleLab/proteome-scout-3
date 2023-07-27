@@ -62,7 +62,7 @@ logger.addHandler(consoleHandler)
 #     os.makedirs('logs')
 #     with open('logs/proteomescout.log', 'w') as fp:
 #         pass
-fileHandler = TimedRotatingFileHandler("var/logs/proteomescout.log", backupCount=100, when="midnight")
+fileHandler = TimedRotatingFileHandler("logs/proteomescout.log", backupCount=100, when="midnight")
 fileHandler.setFormatter(logFormatter)
 fileHandler.namer = lambda name: name.replace(".log", "") + ".log"
 logger.addHandler(fileHandler) 
