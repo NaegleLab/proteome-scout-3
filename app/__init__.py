@@ -1,23 +1,21 @@
 import logging
-from logging.handlers import SMTPHandler, RotatingFileHandler
+from logging.handlers import SMTPHandler, TimedRotatingFileHandler
 import os
 from flask import Flask, request, current_app
+from flask.logging import default_handler
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from .celery_utils import init_celery
 from kombu.utils.url import safequote
-# from . import flask_celery
 # from flask_mail import Mail
 # from flask_bootstrap import Bootstrap
 # from flask_moment import Moment
 # from flask_babel import Babel, lazy_gettext as _l
 # from elasticsearch import Elasticsearch
-# from redis import Redis
 # import rq
 from config import Config
 from celery import Celery
-
 
 access_key = Config.CELERY_ACCESS_KEY
 secret_key = Config.CELERY_SECRET_ACCESS_KEY
@@ -31,11 +29,11 @@ broker_transport_options = {
         }
     }
 }
+
 def make_celery(app_name=__name__):
     result_backend = Config.result_backend
     aws_access_key = safequote(access_key)
     aws_secret_key = safequote(secret_key)
-    #broker_url = Config.CELERY_BROKER_URL
     broker_url = "sqs://{aws_access_key}:{aws_secret_key}@".format(
         aws_access_key=aws_access_key, aws_secret_key=aws_secret_key,
     )
@@ -50,6 +48,21 @@ login = LoginManager()
 login.login_view = 'auth.login'
 login.login_message = 'Please log in to access this page.'
 
+logger = logging.getLogger()
+
+logFormatter = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s %(threadName)s : %(module)s >>> %(message)s")
+
+# Create and add a console handler to root logger
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+logger.addHandler(consoleHandler)
+
+# Create and add a rotating file handler to root logger
+fileHandler = TimedRotatingFileHandler("logs/proteomescout.log", backupCount=100, when="midnight")
+fileHandler.setFormatter(logFormatter)
+fileHandler.namer = lambda name: name.replace(".log", "") + ".log"
+logger.addHandler(fileHandler) 
+
 def create_app(config_class=Config, celery=celery):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -58,6 +71,7 @@ def create_app(config_class=Config, celery=celery):
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
+    # configure_logging(app)
     # mail.init_app(app)
     # bootstrap.init_app(app)
     # moment.init_app(app)
@@ -67,7 +81,13 @@ def create_app(config_class=Config, celery=celery):
     # app.redis = Redis.from_url(app.config['REDIS_URL'])
     # app.task_queue = rq.Queue('proteomescout-tasks', connection=app.redis)
 
-    
+    if (app.config['DEBUG']):
+        app.debug = True
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
+    app.logger.setLevel(log_level)
 
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp)
@@ -95,51 +115,60 @@ def create_app(config_class=Config, celery=celery):
 
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
-
-    # if (app.config['DEBUG']):
-    #     app.debug = True
-    #     log_level = logging.DEBUG
-    # else:
-    #     log_level = logging.INFO
-    # logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
-    #                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
     
-    if not app.debug and not app.testing:
-        if app.config['MAIL_SERVER']:
-            auth = None
-            if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
-                auth = (app.config['MAIL_USERNAME'],
-                        app.config['MAIL_PASSWORD'])
-            secure = None
-            if app.config['MAIL_USE_TLS']:
-                secure = ()
-            mail_handler = SMTPHandler(
-                mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
-                fromaddr='no-reply@' + app.config['MAIL_SERVER'],
-                toaddrs=app.config['ADMINS'], subject='Microblog Failure',
-                credentials=auth, secure=secure)
-            mail_handler.setLevel(logging.ERROR)
-            app.logger.addHandler(mail_handler)
+    # if not app.debug and not app.testing:
+    #     if app.config['MAIL_SERVER']:
+    #         auth = None
+    #         if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
+    #             auth = (app.config['MAIL_USERNAME'],
+    #                     app.config['MAIL_PASSWORD'])
+    #         secure = None
+    #         if app.config['MAIL_USE_TLS']:
+    #             secure = ()
+    #         mail_handler = SMTPHandler(
+    #             mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
+    #             fromaddr='no-reply@' + app.config['MAIL_SERVER'],
+    #             toaddrs=app.config['ADMINS'], subject='Microblog Failure',
+    #             credentials=auth, secure=secure)
+    #         mail_handler.setLevel(logging.ERROR)
+    #         app.logger.addHandler(mail_handler)
 
-        if app.config['LOG_TO_STDOUT']:
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(logging.INFO)
-            app.logger.addHandler(stream_handler)
-        else:
-            if not os.path.exists('logs'):
-                os.mkdir('logs')
-            file_handler = RotatingFileHandler('logs/proteomescout.log',
-                                               maxBytes=10240, backupCount=10)
-            file_handler.setFormatter(logging.Formatter(
-                '%(asctime)s %(levelname)s: %(message)s '
-                '[in %(pathname)s:%(lineno)d]'))
-            file_handler.setLevel(logging.INFO)
-            app.logger.addHandler(file_handler)
+    #     if app.config['LOG_TO_STDOUT']:
+    #         stream_handler = logging.StreamHandler()
+    #         stream_handler.setLevel(logging.INFO)
+    #         app.logger.addHandler(stream_handler)
+    #     else:
+    #         if not os.path.exists('logs'):
+    #             os.mkdir('logs')
+    #         file_handler = RotatingFileHandler('logs/proteomescout.log',
+    #                                            maxBytes=10240, backupCount=10)
+    #         file_handler.setFormatter(logging.Formatter(
+    #             '%(asctime)s %(levelname)s: %(message)s '
+    #             '[in %(pathname)s:%(lineno)d]'))
+    #         file_handler.setLevel(logging.INFO)
+    #         app.logger.addHandler(file_handler)
 
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('Proteomescout startup')
+    #     app.logger.setLevel(logging.INFO)
+    app.logger.info('Proteomescout startup')
 
     return app
+
+# def configure_logging(app):
+    
+#     app.logger.removeHandler(default_handler)
+
+#     logFormatter = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s %(threadName)s : %(module)s >>> %(message)s")
+
+#     # Create and add a console handler to root logger
+#     consoleHandler = logging.StreamHandler()
+#     consoleHandler.setFormatter(logFormatter)
+#     app.logger.addHandler(consoleHandler)
+
+#     # Create and add a rotating file handler to root logger
+#     fileHandler = TimedRotatingFileHandler("logs/proteomescout.log", backupCount=100, when="midnight")
+#     fileHandler.setFormatter(logFormatter)
+#     fileHandler.namer = lambda name: name.replace(".log", "") + ".log"
+#     app.logger.addHandler(fileHandler)    
 
 app = create_app()
 
@@ -159,16 +188,6 @@ from app.main.views.proteins.search import perform_queries
 from proteomescout_worker import notify_tasks
 
 from app.database import user
-
-# import logging 
-# if (app.config['DEBUG']):
-#     app.debug = True
-#     log_level = logging.DEBUG
-# else:
-#     log_level = logging.INFO
-
-# logging.basicConfig(filename='/var/log/naeglelab.log', level=log_level,
-#                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 # except Exception as ex:
 #         app.log_exception(ex)
