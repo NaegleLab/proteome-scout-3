@@ -1,6 +1,6 @@
 from app.config import strings
 from app import celery
-from flask import render_template, redirect, request, jsonify
+from flask import render_template, redirect, request, jsonify, current_app
 from flask_login import current_user
 from app.main.views.proteins import bp
 from app.database import protein, modifications
@@ -136,7 +136,7 @@ def search():
         protein_names = form.protein_names.data
     
         task = perform_queries.delay(search, peptide, species, protein_names, user)
-        print('perform_queries task sent to queue')
+        current_app.logger.info('perform_queries task sent to queue')
         
         return jsonify({'task_id': task.id})
     # except Exception as ex:
@@ -158,5 +158,6 @@ def search_status(task_id):
         'state': task.state,
     }
     if task.state=='SUCCESS':
+        current_app.logger.info('Search task [' + str(task_id) + '] succeeded')
         response['result'] = generate_metadata(task.result)
     return jsonify(response)
