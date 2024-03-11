@@ -14,12 +14,12 @@ import traceback
 
 log = logging.getLogger('ptmscout')
 
-# class TaxonError(Exception):
-#     def __init__(self, taxon):
-#         self.taxon=taxon
+class TaxonError(Exception):
+    def __init__(self, taxon):
+        self.taxon=taxon
 
-#     def __repr__(self):
-#         return "Unable to locate taxon node: %s" % (self.taxon)
+    def __repr__(self):
+        return "Unable to locate taxon node: %s" % (self.taxon)
 
 # invoked by uniprot_tools.parse_features
 class ProteinFeature(object):
@@ -182,7 +182,7 @@ def dynamic_transaction_task(fn):
 
 #         label = strings.kinase_loop_name if len(domain_seq) <= cutoff_loop_size else strings.possible_kinase_name
 #         source = 'predicted'
-#         region = protein.ProteinRegion('Activation Loop', label, source, loop_start, loop_end)
+#/         region = protein.ProteinRegion('Activation Loop', label, source, loop_start, loop_end)
 
 #         i+=1
 
@@ -235,7 +235,7 @@ def get_strain_or_isolate(species):
 
 
 def insert_taxonomic_lineage(species, strain):
-    from ptmworker.helpers import entrez_tools
+    from proteomescout_worker.helpers import entrez_tools
 
     formatted_species = species
     if strain:

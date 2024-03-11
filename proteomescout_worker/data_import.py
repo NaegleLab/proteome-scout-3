@@ -1,7 +1,13 @@
+import celery
+import logging
 from app.database import experiment, upload
 from proteomescout_worker.helpers import upload_helpers
+from proteomescout_worker import notify_tasks, protein_tasks
+log = logging.getLogger('ptmscout')
 
-
+@celery.task
+@upload_helpers.notify_job_failed
+@upload_helpers.dynamic_transaction_task
 def start_import(exp_id, session_id, job_id, nullmods=False):
     exp = experiment.get_experiment_by_id(exp_id, check_ready=False, secure=False)
     

@@ -7,6 +7,7 @@ from app.main.forms.batch_search_form import BatchSearchForm
 from app.database import jobs
 import time
 from random import randint
+from proteomescout_worker import export_tasks
 
 def create_job_and_submit(accessions, user_id):
     accessions = accessions.split()
@@ -28,6 +29,8 @@ def create_job_and_submit(accessions, user_id):
     j.type = 'batch_annotate'
     j.user_id = user_id
     j.save()
+
+    export_tasks.batch_annotate_proteins.apply_async((accessions, batch_id, user_id, j.id))
 
 
 @bp.route('/', methods=['GET', 'POST'])
