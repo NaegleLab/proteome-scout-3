@@ -45,35 +45,19 @@ $(document).ready(function() {
                         console.log("Results succesful");
                         console.log(data.result);
                         show_results(data.result);
+                        break;
                     case 'PENDING':
                         // task is not complete, check again in 1 second
                         console.log('Results for ' + task_id + ' are currently unavailable')
                         setTimeout(function() {
                             check_task_status(task_id);
                         }, 1000);
+                        break;
                     case 'FAILURE':
                         // task failed
                         console.log('The search query failed')                                                    
+                        break;
                 }
-                // if (data.state == 'SUCCESS') {
-                //     // task is complete, show the results
-                //     const loader = document.querySelector(".loader");
-                //     loader.classList.add("loader-hidden");
-                //     loader.addEventListener("transitioned", () => {
-                //         const searchResultsDiv = document.getElementById('search-results');
-                //         searchResultsDiv.removeChild("loader");
-                //     })
-                //     console.log("Results succesful");
-                //     console.log(data.result);
-                //     show_results(data.result);
-                // } else {
-                //     console.log(data.state)
-                //     // task is not complete, check again in 1 second
-                //     console.log('Results for ' + task_id + ' are currently unavailable')
-                //     setTimeout(function() {
-                //         check_task_status(task_id);
-                //     }, 1000);
-                // }
             },
             error: function () {
                 console.error('Something went wrong with the check_task_status function');
@@ -81,6 +65,7 @@ $(document).ready(function() {
             }
         });
     }
+    
 
     function show_results(results) {
         // show the search results on the page

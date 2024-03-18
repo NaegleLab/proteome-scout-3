@@ -193,7 +193,7 @@ function StructureViewer(protein_data) {
 
     this.axis = d3.scaleLinear().domain([0, protein_data.seq.length]).range([0, this.width]);
     
-    this.domain_colors = d3.scaleOrdinal(d3.schemeCategory10); //was schemeCategory20
+    this.domain_colors = d3.scaleOrdinal(d3.schemeSet2); //was schemeCategory20
     this.region_colors =  d3.scaleOrdinal(d3.schemeCategory10); //was schemeCategory20b
     this.residue_colors = create_amino_acid_colors();
 
