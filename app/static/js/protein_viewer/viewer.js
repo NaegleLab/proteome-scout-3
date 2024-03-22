@@ -100,13 +100,13 @@ TrackViewer.prototype.toggle_track = function(t, track_name, mode) {
             if(this.tracks[i].name == track_name){
                 hpos = offscreen_pos;
                 track_pos = npos;
-            }
+            }   
 
             if(this.tracks[i].visible){
                 ntransform = 'translate({0}, {1})'.format(hpos, npos);
                 console.log('add track transform ' + ntransform)
                 t.select(this.tracks[i].selector)
-                    .attrTween('transform', function() { return d3.interpolateString(ntransform)});
+                    .attr('transform', ntransform);
                 npos += this.tracks[i].height;
             }
         }
@@ -116,15 +116,14 @@ TrackViewer.prototype.toggle_track = function(t, track_name, mode) {
         ntransform = 'translate(0, {0})'.format(track_pos);
         console.log('add track transform ' + ntransform)
         t.select(track.selector)
-            .attrTween('transform', function() { return d3.interpolateString(ntransform)});
+            .attr('transform', ntransform);
 
         t = t.transition().delay(500);
         t.select(track.selector)
             .style('opacity', 1);
 
     //Filter Tracks: removing a track
-    }else{
-
+    } else {
         ctransform = track.g.attr('transform');
         ntransform = 'translate({0},{1})'.format(offscreen_pos, track_pos);
 
@@ -134,16 +133,16 @@ TrackViewer.prototype.toggle_track = function(t, track_name, mode) {
         t = t.transition().delay(250);
         console.log('remove track transform ' + ntransform)
         t.select(track.selector)
-            .attrTween('transform', function() { return d3.interpolateString(ntransform)});
+            .attr('transform', ntransform);
 
         t = t.transition().delay(500);
         npos = 0;
         for(var i in this.tracks){
-            if(this.tracks[i].visible){
+            if(this.tracks[i].visible && this.tracks[i].name != track_name){
                 ntransform = 'translate(0, {0})'.format(npos);
                 console.log('remove track transform ' + ntransform)
                 t.select(this.tracks[i].selector)
-                    .attrTween('transform', function() { return d3.interpolateString(ntransform)});
+                    .attr('transform', ntransform);
                 npos += this.tracks[i].height;
             }
         }
@@ -193,7 +192,7 @@ function StructureViewer(protein_data) {
 
     this.axis = d3.scaleLinear().domain([0, protein_data.seq.length]).range([0, this.width]);
     
-    this.domain_colors = d3.scaleOrdinal(d3.schemeCategory10); //was schemeCategory20
+    this.domain_colors = d3.scaleOrdinal(d3.schemeSet2); //was schemeCategory20
     this.region_colors =  d3.scaleOrdinal(d3.schemeCategory10); //was schemeCategory20b
     this.residue_colors = create_amino_acid_colors();
 
