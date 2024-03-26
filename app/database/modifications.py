@@ -23,6 +23,7 @@ class PosiitionEnum(enum.Enum):
     c_terminal = 'c-terminal'
     n_terminal = 'n-terminal'
     core = 'core'
+    none = None  # Add this line
 
 class PTM(db.Model):
     __tablename__ = 'PTM'
@@ -30,7 +31,7 @@ class PTM(db.Model):
     id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     name = db.Column(db.String(100), unique=True)
     
-    position = db.Column(db.Enum(PosiitionEnum))
+    position = db.Column(db.Enum(PosiitionEnum), nullable=True)  # Make sure the column is nullable
     
     accession = db.Column(db.String(10))
     target = db.Column(db.String(0))
