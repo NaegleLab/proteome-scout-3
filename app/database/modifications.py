@@ -4,6 +4,7 @@ from app.database import protein as protein_mod
 # from sqlalchemy.types import db.Integer, db.String, CHAR, Float, Enum, DateTime
 # from sqlalchemy.orm import db.relationship
 from sqlalchemy.sql.expression import and_, or_
+from sqlalchemy import Enum
 from app import db
 from functools import reduce
 import enum
@@ -18,19 +19,20 @@ class PTMkeyword(db.Model):
     PTM_id = db.Column(db.Integer, db.ForeignKey('PTM.id'))
     keyword = db.Column(db.String(100))
 
-class PosiitionEnum(enum.Enum):
-    anywhere = 'anywhere'
-    c_terminal = 'c-terminal'
-    n_terminal = 'n-terminal'
-    core = 'core'
+#class PosiitionEnum(enum.Enum):
+  #  anywhere = 'anywhere'
+  #  c_terminal = 'c-terminal'
+  #  n_terminal = 'n-terminal'
+  #  core = 'core'
+  #  none = None  # Add this line
 
 class PTM(db.Model):
     __tablename__ = 'PTM'
     
     id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     name = db.Column(db.String(100), unique=True)
-    
-    position = db.Column(db.Enum(PosiitionEnum))
+    ## testing different ways to define the enum
+    position = db.Column(Enum('anywhere', 'c-terminal', 'n-terminal', 'core', name='positionenum'), nullable=True)
     
     accession = db.Column(db.String(10))
     target = db.Column(db.String(0))
