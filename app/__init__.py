@@ -42,7 +42,8 @@ def make_celery(app_name=__name__):
 
 celery = make_celery()
 celery.conf['broker_transport_options']=broker_transport_options
-db = SQLAlchemy()
+#db = SQLAlchemy() # altering this to use the engine_options parameter to set pool_recycle and pool_pre_ping to ensure connection 
+db = SQLAlchemy(engine_options={"pool_recycle": 3600, "pool_pre_ping": True})
 migrate = Migrate()
 login = LoginManager()
 login.login_view = 'auth.login'
