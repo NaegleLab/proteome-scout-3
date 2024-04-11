@@ -1,12 +1,12 @@
 from celery.schedules import crontab
 
 def init_celery(celery, app):
-
     celery.conf.update(app.config)
 
     celery.conf.update(
         enable_utc = False,
-        timezone = 'America/New_York'
+        timezone = 'America/New_York', 
+        broker_pool_limit = None, 
     )
 
     celery.conf.beat_schedule = {"run-me-on_wednesday": {
