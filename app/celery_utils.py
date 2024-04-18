@@ -6,7 +6,7 @@ def init_celery(celery, app):
     celery.conf.update(
         enable_utc = False,
         timezone = 'America/New_York', 
-        broker_pool_limit = None, 
+        broker_pool_limit = 10, 
     )
 
     celery.conf.beat_schedule = {"run-me-on_wednesday": {
@@ -15,6 +15,8 @@ def init_celery(celery, app):
         "args": ("hello",)
         }
     }
+
+    
     
     # celery.conf.beat_schedule = {"run-me-every-ten-seconds": {
     #     "task": "scripts.export.test_task.test",
