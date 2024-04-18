@@ -9,12 +9,12 @@ def init_celery(celery, app):
         broker_pool_limit = 10, 
     )
 
-    celery.conf.beat_schedule = {"run-me-on_wednesday": {
-        "task": "scripts.export.test_task.test",
-        "schedule": crontab(minute=29, hour=0, day_of_week='wednesday'),
-        "args": ("hello",)
-        }
-    }
+    #celery.conf.beat_schedule = {"run-me-on_wednesday": {
+    #    "task": "scripts.export.test_task.test",
+    #    "schedule": crontab(minute=29, hour=0, day_of_week='wednesday'),
+    #    "args": ("hello",)
+    #    }
+    #}
 
     
     
