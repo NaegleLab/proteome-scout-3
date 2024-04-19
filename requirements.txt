@@ -2,14 +2,14 @@ alembic==0.9.6
 amqp==5.1.1
 autopep8==1.7.0
 Babel==2.5.1
-billiard==3.6.4.0
+billiard==4.2.0 #3.6.4.0
 bio==1.3.8
 biopython==1.79
 biothings-client==0.2.6
 blinker==1.4
 boto3==1.21.44
 botocore==1.24.44
-celery==5.2.7
+celery== 5.4.0 #5.2.7 - updating celery b/c 5.2.7 has error with SQS udpates 
 certifi==2017.7.27.1
 chardet==3.0.4
 charset-normalizer==2.0.12
@@ -38,7 +38,7 @@ importlib-metadata==4.12.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
 jmespath==1.0.0
-kombu==5.2.4
+kombu==5.3.4
 Mako==1.0.7
 MarkupSafe==2.1.1
 mygene==3.2.2
@@ -53,7 +53,7 @@ pycodestyle==2.9.1
 pycurl==7.45.1
 PyJWT==1.5.3
 PyMySQL==1.0.2
-python-dateutil==2.8.1
+python-dateutil==2.8.2
 python-dotenv==0.20.0
 python-editor==1.0.3
 pytz==2022.1
@@ -69,7 +69,7 @@ tqdm==4.64.0
 transaction==3.0.1
 urllib3==1.26.9
 uWSGI==2.0.20
-vine==5.0.0
+vine==5.1.0
 visitor==0.1.3
 wcwidth==0.2.5
 Werkzeug==2.2.2
