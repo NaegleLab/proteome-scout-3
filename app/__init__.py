@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from .celery_utils import init_celery
 from kombu.utils.url import safequote
-# from flask_mail import Mail
+from flask_mail import Mail
 # from flask_bootstrap import Bootstrap
 # from flask_moment import Moment
 # from flask_babel import Babel, lazy_gettext as _l
@@ -63,6 +63,8 @@ logger.addHandler(consoleHandler)
 #     os.makedirs('logs')
 #     with open('logs/proteomescout.log', 'w') as fp:
 #         pass
+# creating mail 
+mail = Mail() 
 fileHandler = TimedRotatingFileHandler("logs/proteomescout.log", backupCount=100, when="midnight")
 fileHandler.setFormatter(logFormatter)
 fileHandler.namer = lambda name: name.replace(".log", "") + ".log"
@@ -77,7 +79,7 @@ def create_app(config_class=Config, celery=celery):
     migrate.init_app(app, db)
     login.init_app(app)
     # configure_logging(app)
-    # mail.init_app(app)
+    mail.init_app(app) # adding mail to app 
     # bootstrap.init_app(app)
     # moment.init_app(app)
     # babel.init_app(app)
