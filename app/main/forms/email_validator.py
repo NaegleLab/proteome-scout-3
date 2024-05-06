@@ -3,6 +3,6 @@ from wtforms.validators import InputRequired
 from flask_wtf import FlaskForm
 
 
-class ResetPasswordRequestForm(FlaskForm):
+class EmailForm(FlaskForm):
     email = StringField('Email', validators=[validators.DataRequired(), validators.Email()])
     submit = SubmitField('Request Password Reset')
