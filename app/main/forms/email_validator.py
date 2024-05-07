@@ -6,3 +6,9 @@ from flask_wtf import FlaskForm
 class EmailForm(FlaskForm):
     email = StringField('Email', validators=[validators.DataRequired(), validators.Email()])
     submit = SubmitField('Request Password Reset')
+
+
+class DownloadForm(FlaskForm):
+    email = StringField('Email', validators=[validators.DataRequired(), validators.Email()])
+    annotate = BooleanField('Annotate')
+    submit = SubmitField('Request Download')

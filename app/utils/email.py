@@ -2,6 +2,7 @@ from flask_mail import Message
 from app import mail, celery
 from flask import render_template
 from app import current_app
+import os 
 
 def send_email(subject, sender, recipients, text_body, html_body):
     msg = Message(subject, sender=sender, recipients=recipients)
@@ -23,3 +24,21 @@ def send_password_reset_email(user):
                                          user=user, token=token),
                html_body=render_template('proteomescout/email/reset_password.html',
                                          user=user, token=token))
+    
+
+# Making function to send email and registering as a celery task 
+
+@celery.task
+def send_email_with_exp_download(recipient, sender, subject, body, attachment_path):
+    sender = current_app.config['ADMINS'][0],
+    msg = Message(subject, recipients=[recipient])
+    msg.body = body
+
+    with open(attachment_path, "rb") as fp:
+        msg.attach(
+            filename=os.path.basename(attachment_path),
+            content_type="text/csv",
+            data=fp.read(),
+        )
+
+    mail.send(msg)

@@ -5,10 +5,11 @@ from app import celery
 from proteomescout_worker import notify_tasks, protein_tasks
 from app.utils import export_proteins, downloadutils
 import csv, os, random
+from app.utils.email import send_email_with_exp_download
 
 NOTIFY_INTERVAL = 5
 
-def annotate_experiment(user, exp, header, rows, job_id):
+def annotate_experiment( exp, header, rows, job_id):
     notify_tasks.set_job_stage.apply_async((job_id, 'annotating', len(rows)))
 
     header += [ 'scansite_bind', 'scansite_kinase', 'nearby_modifications',\
@@ -127,11 +128,11 @@ def get_experiment_header(exp):
 def get_experiment_data(exp, data_labels):
     rows = []
     for ms in exp.measurements:
-        mod_sites = '; '.join([modpep.peptide.getName() for modpep in ms.peptides])
+        mod_sites = '; '.join([modpep.peptide.get_name() for modpep in ms.peptides])
         aligned_peptides = '; '.join([modpep.peptide.pep_aligned for modpep in ms.peptides])
         modification_types = '; '.join([modpep.modification.name for modpep in ms.peptides])
         
-        gene_sites = [ms.protein.getGeneName()] + [modpep.peptide.getName() for modpep in ms.peptides]
+        gene_sites = [ms.protein.get_gene_name()] + [modpep.peptide.get_name() for modpep in ms.peptides]
         row = [ms.id, ms.query_accession, ms.protein.acc_gene, ms.protein.locus, ms.protein.name, ms.protein.species.name, ms.peptide, mod_sites, '_'.join(gene_sites), aligned_peptides, modification_types]
         
         ms_data = {}
@@ -154,17 +155,20 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
-    exp_filename = 'experiment.%d.%d.%d.tsv' % (exp_id, user_id, export_id)
+    #exp_filename = 'experiment.%d.%d.%d.tsv' % (exp_id, user_id, export_id)
+    exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
     exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
 
-    usr = user.getUserById(user_id)
-    exp = experiment.getExperimentById(exp_id, usr)
+    # Create the directory if it does not exist
+    os.makedirs(os.path.dirname(exp_path), exist_ok=True)
+    #usr = user.getUserById(user_id)
+    exp = experiment.get_experiment_by_id(exp_id)
 
     header, data_labels = get_experiment_header(exp)
     rows = get_experiment_data(exp, data_labels)
 
     if annotate:
-        header, rows = annotate_experiment(usr, exp, header, rows, job_id)
+        header, rows = annotate_experiment( exp, header, rows, job_id)
 
     with open(exp_path, 'w') as export_file:
         cw = csv.writer(export_file, dialect='excel-tab')
@@ -172,7 +176,10 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
         cw.writerow(header)
         for row in rows:
             cw.writerow(row)
-
+    
+    send_email_with_exp_download.apply_async(
+        (user_id, "Your export is ready", "Here is your exported data.", exp_path)
+    )
     finalize_task = notify_tasks.finalize_experiment_export_job.s()
     return finalize_task, (job_id,), None
 
@@ -260,12 +267,12 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
         for row in rows:
             cw.writerow(row)
 
-    experiments = [ experiment.getExperimentById(exp_id) for exp_id in experiment_list ]
+    experiments = [ experiment.get_experiment_by_id(exp_id) for exp_id in experiment_list ]
     downloadutils.experiment_metadata_to_tsv(experiments, metadata_filepath)
 
     downloadutils.zip_package([data_filepath, metadata_filepath], zip_filepath)
 
-    exp = experiment.getExperimentById(exp_id, secure=False, check_ready=False)
+    exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
     exp.delete()
 
     return success, errors

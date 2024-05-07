@@ -8,7 +8,7 @@ from app.config import strings, settings
 @upload_helpers.transaction_task
 def finalize_batch_annotate_job(stats, job_id):
     protein_cnt, error_cnt = stats
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.finish()
     job.save()
     
@@ -20,7 +20,7 @@ def finalize_batch_annotate_job(stats, job_id):
 @celery.task
 @upload_helpers.transaction_task
 def finalize_experiment_export_job(job_id):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.finish()
     job.save()
     
@@ -32,7 +32,7 @@ def finalize_experiment_export_job(job_id):
 @celery.task
 @upload_helpers.transaction_task
 def finalize_mcam_export_job(job_id):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.finish()
     job.save()
     
@@ -44,7 +44,7 @@ def finalize_mcam_export_job(job_id):
 @celery.task
 @upload_helpers.transaction_task
 def finalize_experiment_import(exp_id):
-    exp = experiment.getExperimentById(exp_id, check_ready=False, secure=False)
+    exp = experiment.get_experiment_by_id(exp_id, check_ready=False, secure=False)
     exp.job.finish()
     exp.job.save()
 
@@ -62,7 +62,7 @@ def finalize_experiment_import(exp_id):
 @celery.task
 @upload_helpers.transaction_task
 def finalize_annotation_upload_job(job_id, total, errors):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.finish()
     job.save()
     
@@ -78,7 +78,7 @@ def finalize_annotation_upload_job(job_id, total, errors):
 @celery.task
 @upload_helpers.transaction_task
 def notify_job_failed(job_id, exc, stack_trace):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.fail(stack_trace)
     job.save()
     
@@ -92,14 +92,14 @@ def notify_job_failed(job_id, exc, stack_trace):
 @celery.task
 @upload_helpers.transaction_task
 def set_job_status(job_id, status):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.status = status
     job.save()
 
 @celery.task
 @upload_helpers.transaction_task
 def set_job_stage(job_id, stage, max_value):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.stage = stage
     job.progress = 0
     job.max_progress = max_value
@@ -108,7 +108,7 @@ def set_job_stage(job_id, stage, max_value):
 @celery.task
 @upload_helpers.transaction_task
 def set_job_progress(job_id, value, max_value):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.progress = value
     job.max_progress = max_value
     job.save()
@@ -116,7 +116,7 @@ def set_job_progress(job_id, value, max_value):
 @celery.task
 @upload_helpers.transaction_task
 def increment_job_progress(job_id):
-    job = jobs.getJobById(job_id)
+    job = jobs.get_job_by_id(job_id)
     job.progress = job.progress+1
     job.save()
 
