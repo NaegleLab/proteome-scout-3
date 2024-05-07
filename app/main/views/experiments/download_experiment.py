@@ -1,15 +1,11 @@
-from flask import render_template, redirect, flash, url_for, request
+from flask import render_template, redirect, flash, url_for, request, jsonify
 from flask_login import login_required, logout_user, current_user, login_user
-from app.main.forms.email_validator import EmailForm
 from app import current_app
 import sqlalchemy as sa
-from app.database.user import User, load_user_by_username, load_user_by_email#, send_password_reset_email
 from app.database import jobs 
 from proteomescout_worker import export_tasks
-from app.main.forms import email_validator
 from app.main.forms.email_validator import EmailForm, DownloadForm
 from app.main.views.experiments import bp
-from app.utils.email import send_email
 from app import db
 import time
 from random import randint
@@ -17,6 +13,7 @@ from random import randint
 
 
 
+# temp function to just send an email
 # creating temp function for data exports
 #@bp.route('/experiment/download_experiment/<int:experiment_id>', methods = ['GET', 'POST'])
 #def download_experiment(experiment_id):
@@ -64,6 +61,8 @@ def download_experiment(experiment_id):
         export_tasks.run_experiment_export_job.apply_async(
             args=(annotate, export_id, experiment_id, user_id, job_id),
         )
-        flash('Export job started. You will receive an email when it is complete.')
+        #flash('Export job started. You will receive an email when it is complete.')
+        return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
 
     return render_template('proteomescout/experiments/download_experiment.html', experiment_id=experiment_id, form=form)
+

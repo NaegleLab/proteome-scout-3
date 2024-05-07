@@ -2,7 +2,7 @@
 
 {% block content %}
     <h2>Experiment Download Request</h2>
-    <form action="" method="post" style="margin: 20px;">
+    <form id="downloadForm" action="" method="post" style="margin: 20px;">
         {{ form.hidden_tag() }}
         <p>
             {{ form.email.label }}<br>
@@ -20,4 +20,28 @@
         </p>
         <p>{{ form.submit() }}</p>
     </form>
+
+    <!-- Flash messages at the bottom of the form -->
+    <div id="flashMessages"></div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        $('#downloadForm').on('submit', function(e) {
+            e.preventDefault();
+            $(this).find(':submit').attr('disabled', 'disabled');  // Disable the submit button after first submission to not overload the app 
+            $.ajax({
+                url: $(this).attr('action'),
+                type: $(this).attr('method'),
+                data: $(this).serialize(),
+                success: function(data) {
+                    $('#flashMessages').html('<ul class="flashes"><li>' + data.message + '</li></ul>');
+                },
+                complete: function() {
+                    $('#downloadForm').find(':submit').removeAttr('disabled');  // Enable the submit button again when the AJAX request is complete
+                }
+            });
+        });
+    });
+    </script>
 {% endblock %}
