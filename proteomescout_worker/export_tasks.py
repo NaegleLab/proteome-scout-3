@@ -23,7 +23,7 @@ def annotate_experiment( exp, header, rows, job_id):
     
     for ms in exp.measurements:
         if ms.protein_id not in protein_mods:
-            protein_mods[ms.protein_id] = modifications.getMeasuredPeptidesByProtein(ms.protein_id, user)
+            protein_mods[ms.protein_id] = modifications.get_measured_peptides_by_protein(ms.protein_id, user)
     
     ms_map = {}
     for ms in exp.measurements:
@@ -155,8 +155,8 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
-    #exp_filename = 'experiment.%d.%d.%d.tsv' % (exp_id, user_id, export_id)
-    exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
+    exp_filename = 'experiment_%s_%s.tsv' % (exp_id, export_id)
+    #exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
     exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
 
     # Create the directory if it does not exist
@@ -215,7 +215,7 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
         if acc in protein_map:
             pr = protein_map[acc]
             p = protein.getProteinBySequence( pr.sequence, pr.species )
-            mods = modifications.getMeasuredPeptidesByProtein(p.id, usr)
+            mods = modifications.get_measured_peptides_by_protein(p.id, usr)
 
             qaccs = export_proteins.get_query_accessions(mods)
             n, fmods, fexps, exp_list = export_proteins.format_modifications(mods, None)

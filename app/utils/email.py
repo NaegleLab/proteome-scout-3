@@ -33,7 +33,7 @@ def send_password_reset_email(user):
 @celery.task
 def send_email_with_exp_download(recipient, subject, body, attachment_path):
     #sender = current_app.config['ADMINS'][0]
-    sender = "Name <{}>".format(current_app.config['ADMINS'][0])
+    sender = "ProteomeScout <{}>".format(current_app.config['ADMINS'][0])
     msg = Message(subject, recipients=[recipient], sender = sender)
     msg.body = body
 

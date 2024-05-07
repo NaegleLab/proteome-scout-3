@@ -159,6 +159,10 @@ class ProteinRegion(db.Model):
         c2 = self.start == o.start
         c3 = self.stop == o.stop
         return c0 and c1 and c2 and c3
+    # needs to be hashable for annotation tasks to work properly
+    def __hash__(self):
+        return hash((self.type, self.label, self.start, self.stop))
+
 
     def has_site(self, site_pos):
         return self.start <= site_pos and site_pos <= self.stop
