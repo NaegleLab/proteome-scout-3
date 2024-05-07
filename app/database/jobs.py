@@ -8,6 +8,7 @@ import os
 from app.utils import crypto
 import pickle
 import enum
+from sqlalchemy import Enum 
 import datetime
 
 
@@ -95,8 +96,7 @@ class JobTypeEnum(enum.Enum):
 class Job(db.Model):
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    
-    status = db.Column(db.Enum('configuration', 'in queue', 'started', 'finished', 'error'), 
+    status = db.Column(Enum('configuration', 'in queue', 'started', 'finished', 'error', name = 'jobstatusenum'), 
                        default='configuration')
     failure_reason = db.Column(db.Text, default="")
     
@@ -141,7 +141,7 @@ class Job(db.Model):
     
     def fail(self, stack_trace):
         self.failure_reason = stack_trace
-        self.status = JobStatusEnum.error
+        self.status = JobStatusEnum.error.value
         self.finished = datetime.datetime.now()
 
     def is_active(self):
@@ -155,7 +155,7 @@ class Job(db.Model):
 
     def finish(self):
         self.failure_reason = ''
-        self.status = JobStatusEnum.finished
+        self.status = JobStatusEnum.finished.value
         self.finished = datetime.datetime.now()
         
     def save(self):

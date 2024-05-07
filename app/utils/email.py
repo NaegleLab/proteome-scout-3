@@ -3,6 +3,8 @@ from app import mail, celery
 from flask import render_template
 from app import current_app
 import os 
+from app import current_app 
+
 
 def send_email(subject, sender, recipients, text_body, html_body):
     msg = Message(subject, sender=sender, recipients=recipients)
@@ -29,9 +31,10 @@ def send_password_reset_email(user):
 # Making function to send email and registering as a celery task 
 
 @celery.task
-def send_email_with_exp_download(recipient, sender, subject, body, attachment_path):
-    sender = current_app.config['ADMINS'][0],
-    msg = Message(subject, recipients=[recipient])
+def send_email_with_exp_download(recipient, subject, body, attachment_path):
+    #sender = current_app.config['ADMINS'][0]
+    sender = "Name <{}>".format(current_app.config['ADMINS'][0])
+    msg = Message(subject, recipients=[recipient], sender = sender)
     msg.body = body
 
     with open(attachment_path, "rb") as fp:
