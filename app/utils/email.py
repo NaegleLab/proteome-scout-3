@@ -20,7 +20,7 @@ def send_email(subject, sender, recipients, text_body, html_body):
 def send_password_reset_email(user):
     token = user.get_reset_password_token()
     send_email('[Proteomescout] Reset Your Password',
-               sender= current_app.config['ADMINS'][0], #config['MAIL_USERNAME'],
+               sender= "ProteomeScout <proteomescout3mail@gmail.com>", #config['MAIL_USERNAME'],
                recipients=[user.email],
                text_body=render_template('proteomescout/email/reset_password.txt',
                                          user=user, token=token),
@@ -33,7 +33,7 @@ def send_password_reset_email(user):
 @celery.task
 def send_email_with_exp_download(recipient, subject, body, attachment_path):
     #sender = current_app.config['ADMINS'][0]
-    sender = "ProteomeScout <{}>".format(current_app.config['ADMINS'][0])
+    sender = "ProteomeScout <proteomescout3mail@gmail.com>"
     msg = Message(subject, recipients=[recipient], sender = sender)
     msg.body = body
 
