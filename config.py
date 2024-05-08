@@ -12,12 +12,12 @@ class Config(object):
         'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
-    MAIL_SERVER = os.environ.get('MAIL_SERVER') #or "smtp.gmail.com" # setting up automated email to new google account for test 
-    MAIL_PORT = 587# int(os.environ.get('MAIL_PORT'))
+    MAIL_SERVER = os.environ.get('SMTP_HOST') #os.environ.get('MAIL_SERVER') #or "smtp.gmail.com" # setting up automated email to new google account for test 
+    MAIL_PORT = int(os.environ.get('SMTP_PORT')) #587
     MAIL_USE_SSL = False #os.environ.get('MAIL_USE_SSL') # False is not None
     MAIL_USE_TLS = True #os.environ.get('MAIL_USE_TLS') # True is not None
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')# or "proteomescout3mail@gmail.com"
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')# or "kezmuk-roXsy3-tockec"
+    MAIL_USERNAME = None #os.environ.get('MAIL_USERNAME')# or "proteomescout3mail@gmail.com"
+    MAIL_PASSWORD = os.environ.get('SMTP_CLIENT_SECRET') #os.environ.get('MAIL_PASSWORD')# or "kezmuk-roXsy3-tockec"
     ADMINS = ['proteomescout3mail@gmail.com'] #['your-email@example.com']
     LANGUAGES = ['en', 'es']
     MS_TRANSLATOR_KEY = os.environ.get('MS_TRANSLATOR_KEY')
