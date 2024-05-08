@@ -21,7 +21,7 @@ def start_import(exp_id, session_id, job_id, nullmods=False):
         exp.clearErrors()
         # log.info("Reporting %d data file errors..." % (len(errors)))
         upload_helpers.report_errors(exp_id, errors, line_mapping)
-        exp.saveExperiment()
+        exp.save_experiment()
 
     if len(accessions) == 0:
         log.info("Nothing to do: all proteins were rejected!")

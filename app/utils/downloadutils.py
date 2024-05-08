@@ -102,8 +102,8 @@ def experiment_metadata_to_tsv(exp_list, exp_path=None):
                           'Description',  \
                           'URL', 'PMID' ])
         for exp in exp_list:
-            exp_tsv.writerow([ exp.id, exp.name, exp.getLongCitationString(),
+            exp_tsv.writerow([ exp.id, exp.name, exp.get_long_citation_string(),
                                 exp.description, 
-                                exp.getUrl(), exp.PMID ])
+                                exp.get_url(), exp.PMID ])
 
     return exp_filename

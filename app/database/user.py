@@ -124,6 +124,8 @@ class User(UserMixin, db.Model):
         except:
             return
         return db.session.query(User).get(id)
+    
+    
         
     
     
@@ -156,6 +158,18 @@ class User(UserMixin, db.Model):
 # def getUsernameByRequest(request):
 #     return security.authenticated_userid(request)
 
+class NoSuchUser(Exception):
+    def __init__(self, uid):
+        self.uid = uid
+
+    def __str__(self):
+        return "No such user: %s" % (str(self.uid))
+
+def get_user_by_id(jid):
+    job = User.query.filter_by(id=jid).first()
+    if job is None:
+        raise NoSuchUser(jid)
+    return job
 
 def load_user_by_username(username):
     return User.query.filter_by(username=username).first()
