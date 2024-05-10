@@ -10,6 +10,9 @@ import pickle
 import enum
 from sqlalchemy import Enum 
 import datetime
+import time 
+from app import current_app
+import jwt 
 
 
 class CachedResult(db.Model):
@@ -146,6 +149,21 @@ class Job(db.Model):
 
     def is_active(self):
         return self.status not in [JobStatusEnum.error, JobStatusEnum.finished]
+    # functions that will be used if we implement a download url token system 
+    # instead of emailing downloads directly to the user
+    def get_download_token(self, expires_in=3600):
+        return jwt.encode(
+            {'download': self.id, 'exp': time() + expires_in},
+            current_app.config['SECRET_KEY'], algorithm='HS256').decode('utf-8')
+
+    @staticmethod
+    def verify_download_token(token):
+        try:
+            id = jwt.decode(token, current_app.config['SECRET_KEY'],
+                            algorithms=['HS256'])['download']
+        except:
+            return None
+        return Job.query.get(id)
     
     # def is_old(self):
     #     if self.finished == None:

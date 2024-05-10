@@ -6,6 +6,8 @@ from proteomescout_worker import notify_tasks, protein_tasks
 from app.utils import export_proteins, downloadutils
 import csv, os, random
 from app.utils.email import send_email_with_exp_download
+import logging 
+
 
 NOTIFY_INTERVAL = 5
 
@@ -279,14 +281,17 @@ def annotate_proteins(accessions, batch_id, exp_id, user_id, job_id):
 
     return success, errors
 '''
+
 @celery.task
 @upload_helpers.notify_job_failed
 def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job_id):
+    logger = logging.getLogger()
     usr = user.get_user_by_id(user_id)
+    user_email= user.get_user_by_id(user_id).email
     notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
-    data_filename = "batch.data.%s.%d.tsv" % (batch_id, user_id)
-    metadata_filename = "batch.metadata.%s.%d.tsv" % (batch_id, user_id)
-    zip_filename =  "batch.%s.%d.zip" % (batch_id, user_id)
+    data_filename = "batch_data_%s_%s.tsv" % (batch_id, user_id)
+    metadata_filename = "batch_metadata_%s_%s.tsv" % (batch_id, user_id)
+    zip_filename =  "batch_%s_%s.zip" % (batch_id, user_id)
 
     data_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, data_filename)
     metadata_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, metadata_filename)
@@ -306,9 +311,12 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
 
     i = 0
     for acc in accessions:
+        logger.info(f'Processing accession {acc}')
         pr = acc
         proteins = protein.get_proteins_by_accession(pr)
-        if proteins:  # Check if the list is not empty
+        for p in proteins:  # Check if the list is not empty
+            logger.info(f'Processing protein {p.id}')
+
             p = proteins[0]  # Get the first Protein object from the list
             mods = modifications.get_measured_peptides_by_protein(p.id, usr)
             
@@ -353,6 +361,7 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
                 notify_tasks.set_job_progress.apply_async((job_id, i, len(accessions)))
 
     with open(data_filepath, 'w') as bfile:
+        logger.info(f'Writing data to {data_filepath}')
         cw = csv.writer(bfile, dialect='excel-tab')
         cw.writerow(header)
         for row in rows:
@@ -364,10 +373,9 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
     downloadutils.zip_package([data_filepath, metadata_filepath], zip_filepath)
 
     exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
-    #send_email_with_exp_download.apply_async(
-     #   (user_id, "Your export is ready", "Here is your exported data.", zip_filepath)
-    #)
-    exp.delete()
+    send_email_with_exp_download.apply_async(
+     (user_email, "Your export is ready", "Here is your exported data.", zip_filepath)
+    )
 
     return success, errors
 
@@ -398,6 +406,11 @@ def create_temp_experiment(user_id, job_id):
     return exp.id
 
 @celery.task
+def delete_experiment(sess,exp_id):
+    exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
+    exp.delete()
+
+@celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
 def batch_annotate_proteins(accessions, batch_id, user_id, job_id):
@@ -416,10 +429,17 @@ def batch_annotate_proteins(accessions, batch_id, user_id, job_id):
     #get_protein_metadata_task = protein_tasks.query_protein_metadata.s(accession_dict, line_mapping, exp_id, job_id)
     annotate_proteins_task = annotate_proteins.s(accessions, batch_id, exp_id, user_id, job_id)
     notify_task = notify_tasks.finalize_batch_annotate_job.s(job_id)
+    #user_email = user.get_user_by_id(user_id).email
+    #send_email_task = send_email_with_exp_download.s(user_email, "Your export is ready", "Here is your exported data.")
+
+
+    # delete temp experiment ID after the job is done
+    delete_task = delete_experiment.s(exp_id)
 
     #load_task = ( get_proteins_task | get_protein_metadata_task | annotate_proteins_task | notify_task )
     #load_task = ( get_proteins_task | annotate_proteins_task | notify_task )
-    load_task = ( annotate_proteins_task | notify_task )
+    load_task = (  annotate_proteins_task | notify_task | delete_task )
+
 
 
 

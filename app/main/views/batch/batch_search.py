@@ -10,7 +10,8 @@ from random import randint
 from proteomescout_worker import export_tasks
 
 def create_job_and_submit(accessions, user_id):
-    accessions = accessions.split()
+    #accessions = accessions.split()
+    accessions = accessions.replace(',', ' ').split()
     batch_id = "%f.%d" % (time.time(), randint(0,10000))
 
     j = jobs.Job()
