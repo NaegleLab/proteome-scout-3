@@ -120,6 +120,7 @@ def create_app(config_class=Config, celery=celery):
     from app.main.views.files import bp as  compendia_bp
     app.register_blueprint(compendia_bp, url_prefix = '/compendia')
 
+
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
     

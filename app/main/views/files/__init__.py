@@ -4,4 +4,4 @@ bp = Blueprint('compendia', __name__,
     template_folder='templates',
     static_folder='static')
 
-from app.main.views.files import compendia
+import app.main.views.files.compendia  # Import the module where your routes are defined

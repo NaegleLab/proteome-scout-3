@@ -5,9 +5,9 @@ from app import celery
 from proteomescout_worker import notify_tasks, protein_tasks
 from app.utils import export_proteins, downloadutils
 import csv, os, random
-from app.utils.email import send_email_with_exp_download
+from app.utils.email import send_email_with_exp_download, send_email_with_exp_url
 import logging 
-
+from flask import url_for
 
 NOTIFY_INTERVAL = 5
 
@@ -153,11 +153,11 @@ def get_experiment_data(exp, data_labels):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
+def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
-    exp_filename = 'experiment_%s_%s.tsv' % (exp_id, export_id)
+    #exp_filename = 'experiment_%s_%s.tsv' % (exp_id, export_id)
     #exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
     exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
 
@@ -178,10 +178,15 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
         cw.writerow(header)
         for row in rows:
             cw.writerow(row)
-    
-    send_email_with_exp_download.apply_async(
-        (user_id, "Your export is ready", "Here is your exported data.", exp_path)
+    # Generate the result URL
+    #result_url = url_for('download_result', filename=exp_filename, _external=True)
+    #result_url = f'/download_result/{exp_filename}'
+    send_email_with_exp_url.apply_async(
+    (user_id, "Your export is ready", "Here is your exported data. You can download it at the following URL: " + result_url)
     )
+    #send_email_with_exp_download.apply_async(
+    #    (user_id, "Your export is ready", "Here is your exported data.", exp_path)
+    #)
     finalize_task = notify_tasks.finalize_experiment_export_job.s()
     return finalize_task, (job_id,), None
 

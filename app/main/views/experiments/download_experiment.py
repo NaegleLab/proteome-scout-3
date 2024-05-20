@@ -1,6 +1,6 @@
-from flask import render_template, redirect, flash, url_for, request, jsonify
+from flask import render_template, redirect, flash, url_for, request, jsonify, send_file, send_from_directory
 from flask_login import login_required, logout_user, current_user, login_user
-from app import current_app
+#from app import current_app
 import sqlalchemy as sa
 from app.database import jobs 
 from proteomescout_worker import export_tasks
@@ -9,6 +9,8 @@ from app.main.views.experiments import bp
 from app import db
 import time
 from random import randint
+import os
+from app.config import settings
 
 
 
@@ -47,7 +49,7 @@ def create_export_job(export_id, experiment_id, user_id):
     j.save()
     return j.id
 
-
+'''
 @bp.route('/experiment/download_experiment/<int:experiment_id>', methods = ['GET', 'POST'])
 def download_experiment(experiment_id):
     form = DownloadForm()
@@ -65,4 +67,70 @@ def download_experiment(experiment_id):
         return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
 
     return render_template('proteomescout/experiments/download_experiment.html', experiment_id=experiment_id, form=form)
+'''
 
+@bp.route('/experiment/download_experiment/<int:experiment_id>', methods = ['GET', 'POST'])
+def download_experiment(experiment_id):
+    form = DownloadForm()
+    if form.validate_on_submit(): 
+        annotate = form.annotate.data
+        user_id = form.email.data  # assuming user_id is email in this context
+
+        export_id = "%f.%d" % (time.time(), randint(0,10000))
+        job_id = create_export_job(export_id, experiment_id, user_id)  # replace with your actual job creation logic
+
+        # Generate the filename
+        exp_filename = f"experiment_{experiment_id}_{export_id}.tsv"
+
+        # Generate the result URL
+        result_url = url_for('experiment.download_result', filename=exp_filename,  _external=True)
+        print(f"Generated URL: {result_url}")   
+
+        export_tasks.run_experiment_export_job.apply_async(
+            args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url),
+        )
+        #flash('Export job started. You will receive an email when it is complete.')
+        return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
+
+    return render_template('proteomescout/experiments/download_experiment.html', experiment_id=experiment_id, form=form)
+
+## something here is wrong, this route is not being populated in the html file 
+# 
+#
+#@bp.route('/experiments/download_result/<path:filename>', methods=['GET'])
+@bp.route('/download_result/<path:filename>', methods=['GET'])
+def download_result(filename):
+    # Retrieve the job using the job_id
+    #job = jobs.Job.get(job_id)
+    
+    # Assuming the result of the job is a file path stored in job.result
+    #file_path = job.result
+    #file_path = os.path.join(settings.export_address ,filename)
+    # this seemed to work file_path = os.path.join('/Users/logan/proteome-scout-3/app/data/annotate', filename)
+
+    #file_path = os.path.join('/Users/logan/proteome-scout-3/app/data/annotate', filename)
+    file_path = os.path.join('app/data/annotate', filename)  # Construct the relative file path
+
+    print(f"File path: {file_path}")
+    print(f"File exists: {os.path.exists(file_path)}")
+    print(f"Directory: {os.path.dirname(file_path)}")
+    print(f"Filename: {os.path.basename(file_path)}")
+    # Check if the file exists
+    print(os.getcwd())
+    print(os.path.exists(file_path))
+    if os.path.exists(file_path):
+        # Get the absolute directory path
+        absolute_directory = os.path.abspath(os.path.dirname(file_path))
+        return send_from_directory(absolute_directory, os.path.basename(file_path), as_attachment=True)
+        #return send_from_directory(os.path.dirname(file_path), os.path.basename(file_path), as_attachment=True)
+        #return send_file(file_path, as_attachment=True)
+        #return send_from_directory('/Users/logan/proteome-scout-3/app/data/annotate', os.path.basename(file_path), as_attachment=True)
+    else:
+        return "File not found", 404
+    
+# Not sure if this is actually even doing anything. Might remove.
+@bp.route('/download_page/<path:filename>', methods=['GET'])
+def download_page(filename):
+    print(f"filename: {filename}")
+
+    return render_template('proteomescout/experiments/download_results.html', filename=filename)

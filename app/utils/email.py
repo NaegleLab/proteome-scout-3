@@ -45,3 +45,13 @@ def send_email_with_exp_download(recipient, subject, body, attachment_path):
         )
 
     mail.send(msg)
+
+@celery.task
+def send_email_with_exp_url(recipient, subject, body):
+    #sender = current_app.config['ADMINS'][0]
+    sender = "ProteomeScout <proteomescout3mail@gmail.com>"
+    msg = Message(subject, recipients=[recipient], sender = sender)
+    msg.body = body
+
+
+    mail.send(msg)

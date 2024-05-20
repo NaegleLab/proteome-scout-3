@@ -1,10 +1,11 @@
 from app.main.views.files import bp
+#from . import bp  # Import the Blueprint object from your __init__.py file
 from flask import render_template, url_for, request, send_file
+from werkzeug.exceptions import NotFound
 import os
 import pickle
-from app.config import strings, settings
 import time
-from werkzeug.exceptions import NotFound
+from app.config import strings, settings
 
 def create_file_entry(fn, desc, listing):
     entry = {'link': url_for('compendia.compendia_download', name=fn),
@@ -39,7 +40,6 @@ def compendia_download():
         listing = pickle.load(listing_file)
 
     fname = request.args.get('name')
-    # fpath = os.path.join(settings.ptmscout_path, settings.export_file_path, fname)
     file_path = os.path.join(settings.export_file_path, fname)
     fpath = os.path.join(settings.ptmscout_path, file_path)
     if not os.path.exists(fpath):
