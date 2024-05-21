@@ -102,19 +102,14 @@ def download_experiment(experiment_id):
 def download_result(filename):
     # Retrieve the job using the job_id
     #job = jobs.Job.get(job_id)
-    
-    # Assuming the result of the job is a file path stored in job.result
-    #file_path = job.result
-    #file_path = os.path.join(settings.export_address ,filename)
-    # this seemed to work file_path = os.path.join('/Users/logan/proteome-scout-3/app/data/annotate', filename)
 
     #file_path = os.path.join('/Users/logan/proteome-scout-3/app/data/annotate', filename)
     file_path = os.path.join('app/data/annotate', filename)  # Construct the relative file path
 
-    print(f"File path: {file_path}")
-    print(f"File exists: {os.path.exists(file_path)}")
-    print(f"Directory: {os.path.dirname(file_path)}")
-    print(f"Filename: {os.path.basename(file_path)}")
+    #print(f"File path: {file_path}")
+    #print(f"File exists: {os.path.exists(file_path)}")
+    #print(f"Directory: {os.path.dirname(file_path)}")
+    #print(f"Filename: {os.path.basename(file_path)}")
     # Check if the file exists
     print(os.getcwd())
     print(os.path.exists(file_path))
@@ -123,8 +118,7 @@ def download_result(filename):
         absolute_directory = os.path.abspath(os.path.dirname(file_path))
         return send_from_directory(absolute_directory, os.path.basename(file_path), as_attachment=True)
         #return send_from_directory(os.path.dirname(file_path), os.path.basename(file_path), as_attachment=True)
-        #return send_file(file_path, as_attachment=True)
-        #return send_from_directory('/Users/logan/proteome-scout-3/app/data/annotate', os.path.basename(file_path), as_attachment=True)
+    
     else:
         return "File not found", 404
     
