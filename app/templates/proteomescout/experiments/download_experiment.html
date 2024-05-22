@@ -29,19 +29,27 @@
     $(document).ready(function() {
         $('#downloadForm').on('submit', function(e) {
             e.preventDefault();
-            $(this).find(':submit').attr('disabled', 'disabled');  // Disable the submit button after first submission to not overload the app 
+            $(this).find(':submit').attr('disabled', 'disabled');
+
+            const formData = $(this).serialize();
+            console.log('Form data:', formData);  // log the form data to the console
+
             $.ajax({
                 url: $(this).attr('action'),
                 type: $(this).attr('method'),
-                data: $(this).serialize(),
+                data: formData,
                 success: function(data) {
+                    console.log('AJAX request successful');  // log a success message
+                    console.log('Server response:', data);  // log the server response
                     $('#flashMessages').html('<ul class="flashes"><li>' + data.message + '</li></ul>');
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
+                    console.log('Error:', errorThrown);
+                    console.log('Server response:', jqXHR.responseText);
                     alert('An error occurred: ' + errorThrown);
                 },
                 complete: function() {
-                    $('#downloadForm').find(':submit').removeAttr('disabled');  // Enable the submit button again when the AJAX request is complete
+                    $('#downloadForm').find(':submit').removeAttr('disabled');
                 }
             });
         });
