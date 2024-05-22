@@ -37,6 +37,9 @@
                 success: function(data) {
                     $('#flashMessages').html('<ul class="flashes"><li>' + data.message + '</li></ul>');
                 },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    alert('An error occurred: ' + errorThrown);
+                },
                 complete: function() {
                     $('#downloadForm').find(':submit').removeAttr('disabled');  // Enable the submit button again when the AJAX request is complete
                 }
