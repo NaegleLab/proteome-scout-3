@@ -95,6 +95,10 @@ class ProteinAccession(db.Model):
     type = db.Column(db.String(30))
     value = db.Column(db.String(45))
     protein_id = db.Column(db.Integer, db.ForeignKey('protein.id'))
+    primary_acc = db.Column(db.Boolean, default=0)
+    date = db.Column(db.DateTime)
+    out_of_date = db.Column(db.Boolean, default=0)
+
     
     def get_type(self):
         return strings.accession_type_strings[self.type]
