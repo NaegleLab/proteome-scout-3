@@ -32,7 +32,7 @@
             $(this).find(':submit').attr('disabled', 'disabled');
 
             const formData = $(this).serialize();
-            console.log('Form data:', formData);  // log the form data to the console
+            // console.log('Form data:', formData);  // log the form data to the console
 
             $.ajax({
                 url: $(this).attr('action'),
@@ -44,8 +44,8 @@
                     $('#flashMessages').html('<ul class="flashes"><li>' + data.message + '</li></ul>');
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.log('Error:', errorThrown);
-                    console.log('Server response:', jqXHR.responseText);
+                  //  console.log('Error:', errorThrown);
+                  //  console.log('Server response:', jqXHR.responseText);
                     alert('An error occurred: ' + errorThrown);
                 },
                 complete: function() {
