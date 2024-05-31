@@ -153,7 +153,7 @@ def get_experiment_data(exp, data_labels):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url):
+def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url, user_email):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
@@ -182,7 +182,7 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_
     #result_url = url_for('download_result', filename=exp_filename, _external=True)
     #result_url = f'/download_result/{exp_filename}'
     send_email_with_exp_url.apply_async(
-    (user_id, "Your export is ready", "Here is your exported data. You can download it at the following URL: " + result_url)
+    (user_email, "Your export is ready", "Here is your exported data. You can download it at the following URL: " + result_url)
     )
     #send_email_with_exp_download.apply_async(
     #    (user_id, "Your export is ready", "Here is your exported data.", exp_path)

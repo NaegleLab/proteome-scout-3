@@ -72,10 +72,11 @@ def download_experiment(experiment_id):
 @bp.route('/experiment/download_experiment/<int:experiment_id>', methods = ['GET', 'POST'])
 def download_experiment(experiment_id):
     form = DownloadForm()
+    user = current_user if current_user.is_authenticated else None
     if form.validate_on_submit(): 
         annotate = form.annotate.data
-        user_id = form.email.data  # assuming user_id is email in this context
-
+        user_email = form.email.data  # assuming user_id is email in this context
+        user_id = user.id
         export_id = "%f.%d" % (time.time(), randint(0,10000))
         job_id = create_export_job(export_id, experiment_id, user_id)  # replace with your actual job creation logic
 
@@ -87,7 +88,7 @@ def download_experiment(experiment_id):
         print(f"Generated URL: {result_url}")   
 
         export_tasks.run_experiment_export_job.apply_async(
-            args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url),
+            args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url, user_email),
         )
         #flash('Export job started. You will receive an email when it is complete.')
         return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
