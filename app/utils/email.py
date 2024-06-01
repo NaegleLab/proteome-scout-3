@@ -64,16 +64,21 @@ def send_email_with_logs(recipient, subject, body):
     msg = Message(subject, recipients=[recipient], sender=sender)
     msg.body = body
 
-    log_files = ['/var/log/uwsgi.log', '/var/log/uwsgi_debug.log', 
-                 '/var/log/nginx.log', '/var/log/nginx_debug.log',
-                 '/var/log/celery_worker.log', '/var/log/celery_worker.log']
+    #log_files = ['/var/log/uwsgi.log', '/var/log/uwsgi_debug.log', 
+    #             '/var/log/nginx.log', '/var/log/nginx_debug.log',
+     #            '/var/log/celery_worker.log', '/var/log/celery_worker.log']
+
+    log_files = ['/logs']
 
     for log_file in log_files:
-        with open(log_file, "rb") as fp:
-            msg.attach(
-                filename=os.path.basename(log_file),
-                content_type="text/plain",
-                data=fp.read(),
-            )
+        try:
+            with open(log_file, "rb") as fp:
+                msg.attach(
+                    filename=os.path.basename(log_file),
+                    content_type="text/plain",
+                    data=fp.read(),
+                )
+        except (IOError, FileNotFoundError) as e:
+            print(f"Failed to open {log_file}: {e}")
 
     mail.send(msg)
