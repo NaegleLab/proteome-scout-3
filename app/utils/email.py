@@ -55,3 +55,31 @@ def send_email_with_exp_url(recipient, subject, body):
 
 
     mail.send(msg)
+
+# building in log sending function 
+## This will only work when deployed in container. Local dev wont have any attachments to send because file structure 
+# will provide daily or hourly server logs 
+@celery.task
+def send_email_with_logs(recipient, subject, body):
+    sender = "ProteomeScout <proteomescout3mail@gmail.com>"
+    msg = Message(subject, recipients=[recipient], sender=sender)
+    msg.body = body
+
+    log_files = ['/var/log/uwsgi.log', '/var/log/uwsgi_debug.log', 
+                 '/var/log/nginx.log', '/var/log/nginx_debug.log',
+                 '/var/log/celery_worker.log', '/var/log/celery_worker.log']
+
+    #log_files = ['/logs']
+
+    for log_file in log_files:
+        try:
+            with open(log_file, "rb") as fp:
+                msg.attach(
+                    filename=os.path.basename(log_file),
+                    content_type="text/plain",
+                    data=fp.read(),
+                )
+        except (IOError, FileNotFoundError) as e:
+            print(f"Failed to open {log_file}: {e}")
+
+    mail.send(msg)
