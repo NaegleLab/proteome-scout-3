@@ -1,6 +1,6 @@
 from turtle import title
 from app.config import strings
-from flask import render_template, redirect, request, url_for
+from flask import render_template, redirect, request, url_for, flash 
 from flask_login import current_user
 from app.main.views.batch import bp
 from app.main.forms.batch_search_form import BatchSearchForm
@@ -37,23 +37,26 @@ def create_job_and_submit(accessions, user_id):
 @bp.route('/', methods=['GET', 'POST'])
 def batch_search():
     form = BatchSearchForm()
-    user = current_user if current_user.is_authenticated else None
 
     if form.validate_on_submit():
-        accessions = form.accessions.data
-
-        create_job_and_submit(accessions, user.id)
-        return render_template('proteomescout/info/information.html',
-        title = strings.protein_batch_search_submitted_page_title,
-        header = strings.protein_batch_search_submitted_page_title,
-        message = strings.protein_batch_search_submitted_message,
-        link = url_for('account.manage_experiments'),
-        )
+        if current_user.is_authenticated:
+            accessions = form.accessions.data
+            create_job_and_submit(accessions, current_user.id)
+            return render_template('proteomescout/info/information.html',
+                                   title=strings.protein_batch_search_submitted_page_title,
+                                   header=strings.protein_batch_search_submitted_page_title,
+                                   message=strings.protein_batch_search_submitted_message,
+                                   link=url_for('account.manage_experiments'),
+                                   )
+        else:
+            flash('You are not signed in. Please sign in to continue.')
+            return redirect(url_for('auth.login', next=request.url))
     else:
         return render_template(
-        'proteomescout/batch/batch_search.html',
-        title = strings.protein_batch_search_page_title,
-        form = form,
+            'proteomescout/batch/batch_search.html',
+            title=strings.protein_batch_search_page_title,
+            form=form,
         )
+        
 
 

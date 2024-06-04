@@ -11,8 +11,11 @@ from app import db
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
+    message = request.args.get('message')
+    if message:
+        flash(message)
     if current_user.is_authenticated:
-        return redirect(url_for('proteomescout/landing'))
+        return redirect(url_for('info.home'))
     login_form = LoginForm(request.form)
 
     if request.method == 'POST':

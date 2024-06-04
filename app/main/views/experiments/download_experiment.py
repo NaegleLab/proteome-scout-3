@@ -73,9 +73,12 @@ def download_experiment(experiment_id):
 def download_experiment(experiment_id):
     form = DownloadForm()
     user = current_user if current_user.is_authenticated else None
+    if user is None:
+        flash('You must be logged in to download an experiment.')
+        return redirect(url_for('auth.login'))
     if form.validate_on_submit(): 
         annotate = form.annotate.data
-        user_email = form.email.data  # assuming user_id is email in this context
+        user_email = user.email
         user_id = user.id
         export_id = "%f.%d" % (time.time(), randint(0,10000))
         job_id = create_export_job(export_id, experiment_id, user_id)  # replace with your actual job creation logic

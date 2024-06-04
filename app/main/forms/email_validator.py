@@ -9,6 +9,5 @@ class EmailForm(FlaskForm):
 
 
 class DownloadForm(FlaskForm):
-    email = StringField('Email', validators=[validators.DataRequired(), validators.Email()])
     annotate = BooleanField('Annotate')
     submit = SubmitField('Request Download')
