@@ -61,6 +61,7 @@
                             <th>Started</th>
                             <th>Finished</th>
                             <th>Status</th>
+                            <th>Result URL</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,6 +76,7 @@
                             {% else %}
                                 <td>{{ job.status }}</td>
                             {% endif %}
+                            <td><a href="{{ job.result_url }}">Result</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>                    

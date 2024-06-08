@@ -43,7 +43,7 @@ def create_export_job(export_id, experiment_id, user_id):
     #j.status_url = url_for('account.manage_experiments')
     # placeholder
     #j.result_url = url_for('info.home')
-    # j.result_url = request.route_url('batch.batch_download', id=batch_id)
+    #j.result_url = '' #request.route_url('batch.batch_download', id=batch_id)
     j.type = 'experiment_export'
     j.user_id = user_id
     j.save()
@@ -89,6 +89,12 @@ def download_experiment(experiment_id):
         # Generate the result URL
         result_url = url_for('experiment.download_result', filename=exp_filename,  _external=True)
         print(f"Generated URL: {result_url}")   
+
+        # Update the job with the result_url
+        job = jobs.get_job_by_id(job_id)
+        job.result_url = result_url
+        job.save()
+
 
         export_tasks.run_experiment_export_job.apply_async(
             args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url, user_email),
