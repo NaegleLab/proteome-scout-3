@@ -67,7 +67,7 @@ def send_email_with_logs(recipient, subject, body):
 
     log_files = ['/var/log/uwsgi.log', '/var/log/uwsgi_debug.log', 
                  '/var/log/nginx.log', '/var/log/nginx_debug.log',
-                 '/var/log/celery_worker.log', '/var/log/celery_worker_debug.log']
+                 '/var/log/celery_worker.log', '/var/log/celery_worker.log']
 
     #log_files = ['/logs']
 
