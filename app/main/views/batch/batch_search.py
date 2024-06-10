@@ -29,15 +29,15 @@ def create_job_and_submit(accessions, user_id):
     j.user_id = user_id
 
     # Generate the filename
-    batch_filename = f"batch_{batch_id}.zip"
-
+    
+    print(batch_id)
     # Generate the result URL
-    #result_url = url_for('batch.download_result', filename=batch_filename,  _external=True)
     result_url = url_for('batch.download_result', batch_id=batch_id, user_id=current_user.id, _external=True)
     print(f"Generated URL: {result_url}")       
 
-    # Update the job with the result_url
-    j.result_url = result_url
+# Update the job with the result_url
+    j.result_url = result_url 
+
     j.save()
     job_id = j.id
     export_tasks.batch_annotate_proteins.apply_async((accessions, batch_id, user_id, job_id))
@@ -73,8 +73,8 @@ def download_result(batch_id, user_id):
     filename = "batch_%s_%s.zip" % (batch_id, user_id)
     file_path = os.path.join('app/data/annotate', filename)  # Construct the relative file path
 
-    #print(os.getcwd())
-    #print(os.path.exists(file_path))
+    print(os.getcwd())
+    print(os.path.exists(file_path))
 
     print(file_path)
     if os.path.exists(file_path):
