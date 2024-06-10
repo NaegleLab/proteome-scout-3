@@ -88,7 +88,7 @@ def download_experiment(experiment_id):
 
         # Generate the result URL
         result_url = url_for('experiment.download_result', filename=exp_filename,  _external=True)
-        print(f"Generated URL: {result_url}")   
+        #print(f"Generated URL: {result_url}")   
 
         # Update the job with the result_url
         job = jobs.get_job_by_id(job_id)
@@ -121,8 +121,9 @@ def download_result(filename):
     #print(f"Directory: {os.path.dirname(file_path)}")
     #print(f"Filename: {os.path.basename(file_path)}")
     # Check if the file exists
-    print(os.getcwd())
-    print(os.path.exists(file_path))
+    #print(os.getcwd())
+    #print(os.path.exists(file_path))
+    #print(file_path)
     if os.path.exists(file_path):
         # Get the absolute directory path
         absolute_directory = os.path.abspath(os.path.dirname(file_path))
@@ -135,6 +136,6 @@ def download_result(filename):
 # Not sure if this is actually even doing anything. Might remove.
 @bp.route('/download_page/<path:filename>', methods=['GET'])
 def download_page(filename):
-    print(f"filename: {filename}")
+    #print(f"filename: {filename}")
 
     return render_template('proteomescout/experiments/download_results.html', filename=filename)

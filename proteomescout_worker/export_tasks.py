@@ -296,7 +296,7 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
     notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
     data_filename = "batch_data_%s_%s.tsv" % (batch_id, user_id)
     metadata_filename = "batch_metadata_%s_%s.tsv" % (batch_id, user_id)
-    zip_filename =  "batch_%s_%s.zip" % (batch_id, user_id)
+    zip_filename =  "batch_%s.zip" % (batch_id)
 
     data_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, data_filename)
     metadata_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, metadata_filename)
