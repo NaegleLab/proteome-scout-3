@@ -34,7 +34,7 @@ def create_job_and_submit(accessions, user_id):
     # Generate the result URL
     #result_url = url_for('batch.download_result', filename=batch_filename,  _external=True)
     result_url = url_for('batch.download_result', batch_id=batch_id, user_id=current_user.id, _external=True)
-    #print(f"Generated URL: {result_url}")       
+    print(f"Generated URL: {result_url}")       
 
     # Update the job with the result_url
     j.result_url = result_url
@@ -76,7 +76,7 @@ def download_result(batch_id, user_id):
     #print(os.getcwd())
     #print(os.path.exists(file_path))
 
-    #print(file_path)
+    print(file_path)
     if os.path.exists(file_path):
         absolute_directory = os.path.abspath(os.path.dirname(file_path))
         return send_from_directory(absolute_directory, os.path.basename(file_path), as_attachment=True)
