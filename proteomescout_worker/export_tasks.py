@@ -298,11 +298,16 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
     metadata_filename = "batch_metadata_%s_%s.tsv" % (batch_id, user_id)
     zip_filename =  "batch_%s_%s.zip" % (batch_id, user_id)
     print(zip_filename)
-
-
+    
+    logger.info(data_filename, metadata_filename, zip_filename)
     data_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, data_filename)
     metadata_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, metadata_filename)
     zip_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, zip_filename)
+
+    logger.info(zip_filename)
+    logger.info("%s, %s, %s", zip_filepath, data_filepath, metadata_filepath)
+
+
     print(zip_filepath, data_filepath, metadata_filepath)
     header = ['protein_id', 'query_accession', 'other_accessions', 'acc_gene', 'locus', 'protein_name',\
                     'species', 'sequence', 'modifications', 'evidence',\
