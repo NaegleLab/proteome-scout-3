@@ -116,10 +116,10 @@ def download_result(filename):
     #file_path = os.path.join('/Users/logan/proteome-scout-3/app/data/annotate', filename)
     file_path = os.path.join('app/data/annotate', filename)  # Construct the relative file path
 
-    #print(f"File path: {file_path}")
-    #print(f"File exists: {os.path.exists(file_path)}")
-    #print(f"Directory: {os.path.dirname(file_path)}")
-    #print(f"Filename: {os.path.basename(file_path)}")
+    print(f"File path: {file_path}")
+    print(f"File exists: {os.path.exists(file_path)}")
+    print(f"Directory: {os.path.dirname(file_path)}")
+    print(f"Filename: {os.path.basename(file_path)}")
     # Check if the file exists
     #print(os.getcwd())
     #print(os.path.exists(file_path))

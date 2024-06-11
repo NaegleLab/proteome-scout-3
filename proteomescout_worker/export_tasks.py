@@ -289,22 +289,31 @@ def annotate_proteins(accessions, batch_id, exp_id, user_id, job_id):
 
 @celery.task
 @upload_helpers.notify_job_failed
-def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job_id):
+def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job_id, exp_filename):
     logger = logging.getLogger()
     usr = user.get_user_by_id(user_id)
     user_email= user.get_user_by_id(user_id).email
-    notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
-    data_filename = "batch_data_%s_%s.tsv" % (batch_id, user_id)
-    metadata_filename = "batch_metadata_%s_%s.tsv" % (batch_id, user_id)
-    zip_filename =  "batch_%s_%s.zip" % (batch_id, user_id)
-    print(zip_filename)
-    
-    logger.info(data_filename, metadata_filename, zip_filename)
-    data_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, data_filename)
-    metadata_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, metadata_filename)
-    zip_filepath = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, zip_filename)
 
-    logger.info(zip_filename)
+    notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
+    #exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
+
+    data_filename = exp_filename + ".tsv"
+    metadata_filename = exp_filename + "metadata" + ".tsv"
+    zip_filename =  exp_filename + ".zip"
+    print(zip_filename)
+
+    # Determine the common directory
+    common_directory = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path)
+
+    # Ensure the common directory exists
+    os.makedirs(common_directory, exist_ok=True)
+
+    # Define the file paths
+    data_filepath = os.path.join(common_directory, data_filename)
+    metadata_filepath = os.path.join(common_directory, metadata_filename)
+    zip_filepath = os.path.join(common_directory, zip_filename)
+
+    #logger.info(zip_filename)
     logger.info("%s, %s, %s", zip_filepath, data_filepath, metadata_filepath)
 
 
@@ -425,7 +434,7 @@ def delete_experiment(sess,exp_id):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def batch_annotate_proteins(accessions, batch_id, user_id, job_id):
+def batch_annotate_proteins(accessions, batch_id, user_id, job_id, exp_filename):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'initializing', 0))
 
@@ -439,7 +448,7 @@ def batch_annotate_proteins(accessions, batch_id, user_id, job_id):
 
     #get_proteins_task = protein_tasks.get_proteins_from_external_databases.s(accession_dict, line_mapping, exp_id, job_id)
     #get_protein_metadata_task = protein_tasks.query_protein_metadata.s(accession_dict, line_mapping, exp_id, job_id)
-    annotate_proteins_task = annotate_proteins.s(accessions, batch_id, exp_id, user_id, job_id)
+    annotate_proteins_task = annotate_proteins.s(accessions, batch_id, exp_id, user_id, job_id, exp_filename)
     notify_task = notify_tasks.finalize_batch_annotate_job.s(job_id)
     #user_email = user.get_user_by_id(user_id).email
     #send_email_task = send_email_with_exp_download.s(user_email, "Your export is ready", "Here is your exported data.")
