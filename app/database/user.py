@@ -40,7 +40,7 @@ class User(UserMixin, db.Model):
     # def __repr__(self):
     #     return 'users:%d' % (self.id)
 
-    def __init__(self, username="", name="", email="", institution="", access_level='esearcher'):
+    def __init__(self, username="", name="", email="", institution="", access_level='researcher'):
         self.username = username
         self.name = name
         self.email = email

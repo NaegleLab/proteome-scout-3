@@ -107,6 +107,8 @@ def batch_search():
             user_id = user.id
             job_id = create_job_and_submit(accessions, batch_id, user_id)  # replace with your actual job creation logic
 
+            print(f"Job ID: {job_id}")
+
             # generate filename 
             exp_filename = f"batch_{batch_id}_{user_id}"
 
@@ -115,6 +117,7 @@ def batch_search():
 
             # update the jpob with result url 
             job = jobs.get_job_by_id(job_id)
+            print(job)
             job.result_url = result_url
             job.save()
             # submitting the job for annotation 

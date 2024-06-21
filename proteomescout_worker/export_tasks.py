@@ -11,7 +11,7 @@ from flask import url_for
 
 NOTIFY_INTERVAL = 5
 
-def annotate_experiment( exp, header, rows, job_id):
+def annotate_experiment( exp, header, rows, job_id, user_id):
     notify_tasks.set_job_stage.apply_async((job_id, 'annotating', len(rows)))
 
     header += [ 'scansite_bind', 'scansite_kinase', 'nearby_modifications',\
@@ -22,10 +22,10 @@ def annotate_experiment( exp, header, rows, job_id):
                     'protein_pfam_domains', 'protein_uniprot_domains',\
                     'protein_GO_BP', 'protein_GO_CC', 'protein_GO_MF' ]
     protein_mods = {}
-    
+    user_input = user.get_user_by_id(user_id)
     for ms in exp.measurements:
         if ms.protein_id not in protein_mods:
-            protein_mods[ms.protein_id] = modifications.get_measured_peptides_by_protein(ms.protein_id, user)
+            protein_mods[ms.protein_id] = modifications.get_measured_peptides_by_protein(ms.protein_id, user_input)
     
     ms_map = {}
     for ms in exp.measurements:
@@ -170,7 +170,7 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_
     rows = get_experiment_data(exp, data_labels)
 
     if annotate:
-        header, rows = annotate_experiment( exp, header, rows, job_id)
+        header, rows = annotate_experiment( exp, header, rows, job_id, user_id)
 
     with open(exp_path, 'w') as export_file:
         cw = csv.writer(export_file, dialect='excel-tab')
@@ -293,7 +293,7 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
     logger = logging.getLogger()
     usr = user.get_user_by_id(user_id)
     user_email= user.get_user_by_id(user_id).email
-
+    #print(user_email)
     notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
     #exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
 
@@ -388,7 +388,7 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
         for row in rows:
             cw.writerow(row)
 
-    experiments = [ experiment.get_experiment_by_id(exp_id) for exp_id in experiment_list ]
+    experiments = [ experiment.get_experiment_by_id(exp_id, user = usr) for exp_id in experiment_list ]
     downloadutils.experiment_metadata_to_tsv(experiments, metadata_filepath)
 
     downloadutils.zip_package([data_filepath, metadata_filepath], zip_filepath)
