@@ -9,5 +9,5 @@ class EmailForm(FlaskForm):
 
 
 class DownloadForm(FlaskForm):
-    annotate = BooleanField('Annotate')
+    annotate = BooleanField('Annotate', default=True)
     submit = SubmitField('Request Download')

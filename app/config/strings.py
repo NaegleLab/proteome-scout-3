@@ -200,6 +200,10 @@ protein_batch_search_submitted_page_title = "Batch Search Started"
 protein_batch_search_submitted_message = \
 """Protein batch annotation process was successfully started. An e-mail will be sent to you when the batch annotation is complete. Additionally, you may check the status of the search by visiting """
 
+experiment_downloand_submitted_page_title = "Experiment Export Started"
+experiment_downloadoad_submitted_message = \
+"""Experiment export process was successfully started. An e-mail will be sent to you when the export is complete. Additionally, you may check the status of the search by visiting """
+
 
 dataset_upload_confirm_page_title = "Confirm Submission"
 dataset_upload_confirm_message = "Required dataset information is now complete. Are you sure you wish to proceed with the upload? Please review and accept the terms of use below. Pressing cancel will remove this upload session, you may start a new one later."

@@ -10,7 +10,7 @@ from app import db
 import time
 from random import randint
 import os
-from app.config import settings
+from app.config import settings, strings 
 
 
 
@@ -99,9 +99,15 @@ def download_experiment(experiment_id):
         export_tasks.run_experiment_export_job.apply_async(
             args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url, user_email),
         )
+        return render_template('proteomescout/info/information.html',
+                                   title=strings.experiment_downloand_submitted_page_title,
+                                   header=strings.experiment_downloand_submitted_page_title,
+                                   message=strings.experiment_downloadoad_submitted_message,
+                                   link=url_for('account.manage_experiments'),
+                                   )
         #flash('Export job started. You will receive an email when it is complete.')
-        return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
-
+        #return jsonify({'message': 'Export job started. You will receive an email when it is complete.'})
+        
     return render_template('proteomescout/experiments/download_experiment.html', experiment_id=experiment_id, form=form)
 
 ## something here is wrong, this route is not being populated in the html file 
