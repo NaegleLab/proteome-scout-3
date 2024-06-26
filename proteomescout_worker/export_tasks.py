@@ -153,7 +153,7 @@ def get_experiment_data(exp, data_labels):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url, user_email):
+def run_experiment_export_job(annotate, export_id, exp_id, user_id, exp_filename, result_url, user_email, job_id):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
