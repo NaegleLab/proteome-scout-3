@@ -23,7 +23,7 @@ accession_urls = {'swissprot':"http://www.uniprot.org/uniprot/%s",
 
 mod_separator_character = ';'
 mod_separator_character_alt = '|'
-
+export_address = "app/data/annotate"
 naegle_lab_url = 'http://naegle.wustl.edu/'
 pfam_family_url = 'http://pfam.sanger.ac.uk/family/'
 ptmscout_scratch_space = "/tmp"

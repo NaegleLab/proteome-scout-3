@@ -8,7 +8,11 @@ import os
 from app.utils import crypto
 import pickle
 import enum
+from sqlalchemy import Enum 
 import datetime
+import time 
+from app import current_app
+import jwt 
 
 
 class CachedResult(db.Model):
@@ -95,8 +99,7 @@ class JobTypeEnum(enum.Enum):
 class Job(db.Model):
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    
-    status = db.Column(db.Enum('configuration', 'in queue', 'started', 'finished', 'error'), 
+    status = db.Column(Enum('configuration', 'in queue', 'started', 'finished', 'error', name = 'jobstatusenum'), 
                        default='configuration')
     failure_reason = db.Column(db.Text, default="")
     
@@ -141,11 +144,26 @@ class Job(db.Model):
     
     def fail(self, stack_trace):
         self.failure_reason = stack_trace
-        self.status = JobStatusEnum.error
+        self.status = JobStatusEnum.error.value
         self.finished = datetime.datetime.now()
 
     def is_active(self):
         return self.status not in [JobStatusEnum.error, JobStatusEnum.finished]
+    # functions that will be used if we implement a download url token system 
+    # instead of emailing downloads directly to the user
+    def get_download_token(self, expires_in=3600):
+        return jwt.encode(
+            {'download': self.id, 'exp': time() + expires_in},
+            current_app.config['SECRET_KEY'], algorithm='HS256').decode('utf-8')
+
+    @staticmethod
+    def verify_download_token(token):
+        try:
+            id = jwt.decode(token, current_app.config['SECRET_KEY'],
+                            algorithms=['HS256'])['download']
+        except:
+            return None
+        return Job.query.get(id)
     
     # def is_old(self):
     #     if self.finished == None:
@@ -155,7 +173,7 @@ class Job(db.Model):
 
     def finish(self):
         self.failure_reason = ''
-        self.status = JobStatusEnum.finished
+        self.status = JobStatusEnum.finished.value
         self.finished = datetime.datetime.now()
         
     def save(self):

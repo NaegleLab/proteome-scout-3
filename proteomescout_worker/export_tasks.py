@@ -5,10 +5,13 @@ from app import celery
 from proteomescout_worker import notify_tasks, protein_tasks
 from app.utils import export_proteins, downloadutils
 import csv, os, random
+from app.utils.email import send_email_with_exp_download, send_email_with_exp_url
+import logging 
+from flask import url_for
 
 NOTIFY_INTERVAL = 5
 
-def annotate_experiment(user, exp, header, rows, job_id):
+def annotate_experiment( exp, header, rows, job_id, user_id):
     notify_tasks.set_job_stage.apply_async((job_id, 'annotating', len(rows)))
 
     header += [ 'scansite_bind', 'scansite_kinase', 'nearby_modifications',\
@@ -19,10 +22,10 @@ def annotate_experiment(user, exp, header, rows, job_id):
                     'protein_pfam_domains', 'protein_uniprot_domains',\
                     'protein_GO_BP', 'protein_GO_CC', 'protein_GO_MF' ]
     protein_mods = {}
-    
+    user_input = user.get_user_by_id(user_id)
     for ms in exp.measurements:
         if ms.protein_id not in protein_mods:
-            protein_mods[ms.protein_id] = modifications.getMeasuredPeptidesByProtein(ms.protein_id, user)
+            protein_mods[ms.protein_id] = modifications.get_measured_peptides_by_protein(ms.protein_id, user_input)
     
     ms_map = {}
     for ms in exp.measurements:
@@ -127,11 +130,11 @@ def get_experiment_header(exp):
 def get_experiment_data(exp, data_labels):
     rows = []
     for ms in exp.measurements:
-        mod_sites = '; '.join([modpep.peptide.getName() for modpep in ms.peptides])
+        mod_sites = '; '.join([modpep.peptide.get_name() for modpep in ms.peptides])
         aligned_peptides = '; '.join([modpep.peptide.pep_aligned for modpep in ms.peptides])
         modification_types = '; '.join([modpep.modification.name for modpep in ms.peptides])
         
-        gene_sites = [ms.protein.getGeneName()] + [modpep.peptide.getName() for modpep in ms.peptides]
+        gene_sites = [ms.protein.get_gene_name()] + [modpep.peptide.get_name() for modpep in ms.peptides]
         row = [ms.id, ms.query_accession, ms.protein.acc_gene, ms.protein.locus, ms.protein.name, ms.protein.species.name, ms.peptide, mod_sites, '_'.join(gene_sites), aligned_peptides, modification_types]
         
         ms_data = {}
@@ -150,21 +153,24 @@ def get_experiment_data(exp, data_labels):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
+def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url, user_email):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
-    exp_filename = 'experiment.%d.%d.%d.tsv' % (exp_id, user_id, export_id)
+    #exp_filename = 'experiment_%s_%s.tsv' % (exp_id, export_id)
+    #exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
     exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
 
-    usr = user.getUserById(user_id)
-    exp = experiment.getExperimentById(exp_id, usr)
+    # Create the directory if it does not exist
+    os.makedirs(os.path.dirname(exp_path), exist_ok=True)
+    #usr = user.getUserById(user_id)
+    exp = experiment.get_experiment_by_id(exp_id)
 
     header, data_labels = get_experiment_header(exp)
     rows = get_experiment_data(exp, data_labels)
 
     if annotate:
-        header, rows = annotate_experiment(usr, exp, header, rows, job_id)
+        header, rows = annotate_experiment( exp, header, rows, job_id, user_id)
 
     with open(exp_path, 'w') as export_file:
         cw = csv.writer(export_file, dialect='excel-tab')
@@ -172,17 +178,27 @@ def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id):
         cw.writerow(header)
         for row in rows:
             cw.writerow(row)
-
+    # Generate the result URL
+    #result_url = url_for('download_result', filename=exp_filename, _external=True)
+    #result_url = f'/download_result/{exp_filename}'
+    send_email_with_exp_url.apply_async(
+    (user_email, "Your export is ready", "Here is your exported data. You can download it at the following URL: " + result_url)
+    )
+    #send_email_with_exp_download.apply_async(
+    #    (user_id, "Your export is ready", "Here is your exported data.", exp_path)
+    #)
     finalize_task = notify_tasks.finalize_experiment_export_job.s()
     return finalize_task, (job_id,), None
 
+'''
+
 @celery.task
 @upload_helpers.notify_job_failed
-def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job_id):
-    protein_map, protein_id_map = protein_result
-
-    usr = user.getUserById(user_id)
-    notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(protein_map)))
+def annotate_proteins(accessions, batch_id, exp_id, user_id, job_id):
+    #protein_map, protein_id_map = protein_result
+    #protein_map  = protein_result
+    usr = user.get_user_by_id(user_id)
+    notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
     data_filename = "batch.data.%s.%d.tsv" % (batch_id, user_id)
     metadata_filename = "batch.metadata.%s.%d.tsv" % (batch_id, user_id)
     zip_filename =  "batch.%s.%d.zip" % (batch_id, user_id)
@@ -205,17 +221,132 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
 
     i = 0
     for acc in accessions:
-        if acc in protein_map:
-            pr = protein_map[acc]
-            p = protein.getProteinBySequence( pr.sequence, pr.species )
-            mods = modifications.getMeasuredPeptidesByProtein(p.id, usr)
+        #if acc in protein_map:
+        pr = acc
+        p = protein.get_proteins_by_accession(pr)
+        mods = modifications.get_measured_peptides_by_protein(p.id, usr)
+        
+        qaccs = export_proteins.get_query_accessions(mods)
+        n, fmods, fexps, exp_list = export_proteins.format_modifications(mods, None)
+        experiment_list |= exp_list
 
+        row = []
+        row.append( p )
+        row.append( acc )
+        row.append( export_proteins.format_protein_accessions(p.accessions, qaccs) )
+        row.append( p.acc_gene )
+        row.append( p.locus )
+        row.append( p.name )
+        row.append( p.species.name )
+        row.append( p.sequence )
+        row.append( fmods )
+        row.append( fexps )
+
+        uniprot_domains = export_proteins.filter_regions(p.regions, set([ 'domain' ]))
+        kinase_loops = export_proteins.filter_regions(p.regions, set([ 'Activation Loop' ]))
+        macromolecular = export_proteins.filter_regions(p.regions, set([ 'zinc finger region', 'intramembrane region', 'coiled-coil region', 'transmembrane region' ]))
+        topological = export_proteins.filter_regions(p.regions, set([ 'topological domain' ]))
+        structure = export_proteins.filter_regions(p.regions, set([ 'helix', 'turn', 'strand' ]))
+
+        row.append( export_proteins.format_domains(p.domains) )
+        row.append( export_proteins.format_domains(uniprot_domains) )
+        row.append( export_proteins.format_domains(kinase_loops) )
+        row.append( export_proteins.format_regions(macromolecular) )
+        row.append( export_proteins.format_domains(topological) )
+        row.append( export_proteins.format_regions(structure) )
+
+        row.append( export_proteins.format_mutations(p.mutations) )
+        row.append( export_proteins.format_mutation_annotations(p.mutations) )
+        row.append( export_proteins.format_scansite(mods) )
+        row.append( export_proteins.format_GO_terms(p) )
+        rows.append( row )
+        success += 1
+        #else:
+           # errors_for_acc = [ e.message for e in experiment.errorsForAccession(exp_id, acc) ]
+          #  rows.append(['%d ERRORS: %s' % ( len(errors_for_acc), '; '.join(errors_for_acc) ), acc])
+          #  errors+=1
+
+        i+=1
+        if i % NOTIFY_INTERVAL == 0:
+            notify_tasks.set_job_progress.apply_async((job_id, i, len(accessions)))
+
+    with open(data_filepath, 'w') as bfile:
+        cw = csv.writer(bfile, dialect='excel-tab')
+        cw.writerow(header)
+        for row in rows:
+            cw.writerow(row)
+
+    experiments = [ experiment.get_experiment_by_id(exp_id) for exp_id in experiment_list ]
+    downloadutils.experiment_metadata_to_tsv(experiments, metadata_filepath)
+
+    downloadutils.zip_package([data_filepath, metadata_filepath], zip_filepath)
+
+    exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
+    exp.delete()
+
+    return success, errors
+'''
+
+@celery.task
+@upload_helpers.notify_job_failed
+def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job_id, exp_filename):
+    logger = logging.getLogger()
+    usr = user.get_user_by_id(user_id)
+    user_email= user.get_user_by_id(user_id).email
+    #print(user_email)
+    notify_tasks.set_job_stage.apply_async((job_id, 'annotate', len(accessions)))
+    #exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
+
+    data_filename = exp_filename + ".tsv"
+    metadata_filename = exp_filename + "metadata" + ".tsv"
+    zip_filename =  exp_filename + ".zip"
+    print(zip_filename)
+
+    # Determine the common directory
+    common_directory = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path)
+
+    # Ensure the common directory exists
+    os.makedirs(common_directory, exist_ok=True)
+
+    # Define the file paths
+    data_filepath = os.path.join(common_directory, data_filename)
+    metadata_filepath = os.path.join(common_directory, metadata_filename)
+    zip_filepath = os.path.join(common_directory, zip_filename)
+
+    #logger.info(zip_filename)
+    logger.info("%s, %s, %s", zip_filepath, data_filepath, metadata_filepath)
+
+
+    print(zip_filepath, data_filepath, metadata_filepath)
+    header = ['protein_id', 'query_accession', 'other_accessions', 'acc_gene', 'locus', 'protein_name',\
+                    'species', 'sequence', 'modifications', 'evidence',\
+                    'pfam_domains', 'uniprot_domains',\
+                    'kinase_loops', 'macro_molecular',\
+                    'topological', 'structure',\
+                    'mutations', 'mutation_annotations', 'scansite_predictions', 'GO_terms']
+    rows = []
+    success = 0
+    errors = 0
+
+    experiment_list = set()
+
+    i = 0
+    for acc in accessions:
+        logger.info(f'Processing accession {acc}')
+        pr = acc
+        proteins = protein.get_proteins_by_accession(pr)
+        for p in proteins:  # Check if the list is not empty
+            logger.info(f'Processing protein {p.id}')
+
+            p = proteins[0]  # Get the first Protein object from the list
+            mods = modifications.get_measured_peptides_by_protein(p.id, usr)
+            
             qaccs = export_proteins.get_query_accessions(mods)
             n, fmods, fexps, exp_list = export_proteins.format_modifications(mods, None)
             experiment_list |= exp_list
 
             row = []
-            row.append( p.id )
+            row.append( p )
             row.append( acc )
             row.append( export_proteins.format_protein_accessions(p.accessions, qaccs) )
             row.append( p.acc_gene )
@@ -245,28 +376,27 @@ def annotate_proteins(protein_result, accessions, batch_id, exp_id, user_id, job
             row.append( export_proteins.format_GO_terms(p) )
             rows.append( row )
             success += 1
-        else:
-            errors_for_acc = [ e.message for e in experiment.errorsForAccession(exp_id, acc) ]
-            rows.append(['%d ERRORS: %s' % ( len(errors_for_acc), '; '.join(errors_for_acc) ), acc])
-            errors+=1
 
-        i+=1
-        if i % NOTIFY_INTERVAL == 0:
-            notify_tasks.set_job_progress.apply_async((job_id, i, len(protein_map)))
+            i+=1
+            if i % NOTIFY_INTERVAL == 0:
+                notify_tasks.set_job_progress.apply_async((job_id, i, len(accessions)))
 
     with open(data_filepath, 'w') as bfile:
+        logger.info(f'Writing data to {data_filepath}')
         cw = csv.writer(bfile, dialect='excel-tab')
         cw.writerow(header)
         for row in rows:
             cw.writerow(row)
 
-    experiments = [ experiment.getExperimentById(exp_id) for exp_id in experiment_list ]
+    experiments = [ experiment.get_experiment_by_id(exp_id, user = usr) for exp_id in experiment_list ]
     downloadutils.experiment_metadata_to_tsv(experiments, metadata_filepath)
 
     downloadutils.zip_package([data_filepath, metadata_filepath], zip_filepath)
 
-    exp = experiment.getExperimentById(exp_id, secure=False, check_ready=False)
-    exp.delete()
+    exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
+    send_email_with_exp_download.apply_async(
+     (user_email, "Your export is ready", "Here is your exported data.", zip_filepath)
+    )
 
     return success, errors
 
@@ -293,31 +423,45 @@ def create_temp_experiment(user_id, job_id):
     exp.submitted_id = user_id
     exp.type='dataset'
 
-    exp.saveExperiment()
+    exp.save_experiment()
     return exp.id
+
+@celery.task
+def delete_experiment(sess,exp_id):
+    exp = experiment.get_experiment_by_id(exp_id, secure=False, check_ready=False)
+    exp.delete()
 
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def batch_annotate_proteins(accessions, batch_id, user_id, job_id):
+def batch_annotate_proteins(accessions, batch_id, user_id, job_id, exp_filename):
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'initializing', 0))
 
     accession_dict = {}
     line_mapping = {}
     for i, acc in enumerate(accessions):
-        accession_dict[acc] = set([i+1])
+        accession_dict[acc] = list([i+1])
         line_mapping[i+1] = (acc, '')
 
     exp_id = create_temp_experiment(user_id, job_id)
 
-    get_proteins_task = protein_tasks.get_proteins_from_external_databases.s(accession_dict, line_mapping, exp_id, job_id)
+    #get_proteins_task = protein_tasks.get_proteins_from_external_databases.s(accession_dict, line_mapping, exp_id, job_id)
     #get_protein_metadata_task = protein_tasks.query_protein_metadata.s(accession_dict, line_mapping, exp_id, job_id)
-    annotate_proteins_task = annotate_proteins.s(accessions, batch_id, exp_id, user_id, job_id)
+    annotate_proteins_task = annotate_proteins.s(accessions, batch_id, exp_id, user_id, job_id, exp_filename)
     notify_task = notify_tasks.finalize_batch_annotate_job.s(job_id)
+    #user_email = user.get_user_by_id(user_id).email
+    #send_email_task = send_email_with_exp_download.s(user_email, "Your export is ready", "Here is your exported data.")
+
+
+    # delete temp experiment ID after the job is done
+    delete_task = delete_experiment.s(exp_id)
 
     #load_task = ( get_proteins_task | get_protein_metadata_task | annotate_proteins_task | notify_task )
-    load_task = ( get_proteins_task | annotate_proteins_task | notify_task )
+    #load_task = ( get_proteins_task | annotate_proteins_task | notify_task )
+    load_task = (  annotate_proteins_task | notify_task | delete_task )
+
+
 
 
     return load_task, (None,), None

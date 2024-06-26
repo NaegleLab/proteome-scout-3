@@ -26,6 +26,9 @@
                     <dd>See all peptide assignments that might be ambiguously assigned.  Explore and change assignments</dd>
                 {% endif %}
 
+                <dt><a href="{{url_for('experiment.download_experiment', experiment_id=experiment.id)}}">Download Experiment</a></dt>
+                <dd>Download annotated experiment data</dd>
+
                         
             </dl>
     	    </div>

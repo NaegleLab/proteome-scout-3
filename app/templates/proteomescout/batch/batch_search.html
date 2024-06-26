@@ -11,8 +11,25 @@
 {% block content %}
 
 <div class="container">
+
+  <!-- Flash messages section -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="alert alert-warning">
+        {% for message in messages %}
+          {{ message }}
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <h2>Protein Batch Search Job Creator</h2>
   <div class = "card card-body bg-light">
+
+    <!-- Add the login notice here -->
+    {% if not current_user.is_authenticated %}
+    <p>You must login to use this resource. <a class="nav-link" href="{{url_for('auth.login')}}" style="border: 1px solid; padding: 5px; display: inline-block;">Log in</a></p>
+    {% endif %}
   <form action="" method="post" novalidate>
         {{ form.hidden_tag() }}
         <p>
@@ -37,10 +54,6 @@
    
     </div>
 
-
-
 </div>
-
-
 
 {% endblock %}

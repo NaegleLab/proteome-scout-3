@@ -2,6 +2,9 @@ from app import db, login
 from app.utils import crypto
 import datetime
 import enum
+import jwt
+from time import time 
+from app import current_app
 
 from flask_login import UserMixin
 
@@ -37,7 +40,7 @@ class User(UserMixin, db.Model):
     # def __repr__(self):
     #     return 'users:%d' % (self.id)
 
-    def __init__(self, username="", name="", email="", institution="", access_level='esearcher'):
+    def __init__(self, username="", name="", email="", institution="", access_level='researcher'):
         self.username = username
         self.name = name
         self.email = email
@@ -108,6 +111,21 @@ class User(UserMixin, db.Model):
     #         np = permissions.Permission(invite.experiment)
     #         np.user_id = self.id
     #         self.permissions.append(np)
+    def get_reset_password_token(self, expires_in=600):
+        return jwt.encode(
+            {'reset_password': self.id, 'exp': time() + expires_in},
+            current_app.config['SECRET_KEY'], algorithm='HS256')
+
+    @staticmethod
+    def verify_reset_password_token(token):
+        try:
+            id = jwt.decode(token, current_app.config['SECRET_KEY'],
+                            algorithms=['HS256'])['reset_password']
+        except:
+            return
+        return db.session.query(User).get(id)
+    
+    
         
     
     
@@ -140,6 +158,18 @@ class User(UserMixin, db.Model):
 # def getUsernameByRequest(request):
 #     return security.authenticated_userid(request)
 
+class NoSuchUser(Exception):
+    def __init__(self, uid):
+        self.uid = uid
+
+    def __str__(self):
+        return "No such user: %s" % (str(self.uid))
+
+def get_user_by_id(jid):
+    job = User.query.filter_by(id=jid).first()
+    if job is None:
+        raise NoSuchUser(jid)
+    return job
 
 def load_user_by_username(username):
     return User.query.filter_by(username=username).first()

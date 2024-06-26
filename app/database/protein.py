@@ -95,6 +95,10 @@ class ProteinAccession(db.Model):
     type = db.Column(db.String(30))
     value = db.Column(db.String(45))
     protein_id = db.Column(db.Integer, db.ForeignKey('protein.id'))
+    primary_acc = db.Column(db.Boolean, default=0)
+    date = db.Column(db.DateTime)
+    out_of_date = db.Column(db.Boolean, default=0)
+
     
     def get_type(self):
         return strings.accession_type_strings[self.type]
@@ -159,6 +163,10 @@ class ProteinRegion(db.Model):
         c2 = self.start == o.start
         c3 = self.stop == o.stop
         return c0 and c1 and c2 and c3
+    # needs to be hashable for annotation tasks to work properly
+    def __hash__(self):
+        return hash((self.type, self.label, self.start, self.stop))
+
 
     def has_site(self, site_pos):
         return self.start <= site_pos and site_pos <= self.stop

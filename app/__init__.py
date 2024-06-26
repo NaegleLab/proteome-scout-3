@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from .celery_utils import init_celery
 from kombu.utils.url import safequote
-# from flask_mail import Mail
+from flask_mail import Mail
 # from flask_bootstrap import Bootstrap
 # from flask_moment import Moment
 # from flask_babel import Babel, lazy_gettext as _l
@@ -63,6 +63,8 @@ logger.addHandler(consoleHandler)
 #     os.makedirs('logs')
 #     with open('logs/proteomescout.log', 'w') as fp:
 #         pass
+# creating mail 
+mail = Mail() 
 fileHandler = TimedRotatingFileHandler("logs/proteomescout.log", backupCount=100, when="midnight")
 fileHandler.setFormatter(logFormatter)
 fileHandler.namer = lambda name: name.replace(".log", "") + ".log"
@@ -77,7 +79,7 @@ def create_app(config_class=Config, celery=celery):
     migrate.init_app(app, db)
     login.init_app(app)
     # configure_logging(app)
-    # mail.init_app(app)
+    mail.init_app(app) # adding mail to app 
     # bootstrap.init_app(app)
     # moment.init_app(app)
     # babel.init_app(app)
@@ -117,6 +119,7 @@ def create_app(config_class=Config, celery=celery):
 
     from app.main.views.files import bp as  compendia_bp
     app.register_blueprint(compendia_bp, url_prefix = '/compendia')
+
 
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
@@ -190,7 +193,7 @@ app = create_app()
 # import worker files here if you want them to show up in celery as registered tasks
 from app.main.views.proteins.search import perform_queries
 from proteomescout_worker import notify_tasks, export_tasks
-
+from app.utils.email import send_email_with_logs
 from app.database import user
 
 # except Exception as ex:

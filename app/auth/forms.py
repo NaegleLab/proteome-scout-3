@@ -1,5 +1,6 @@
-from wtforms import Form, StringField, PasswordField, validators, SubmitField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length, Optional, Regexp
+from wtforms import Form, StringField, PasswordField, validators, SubmitField, TextAreaField, BooleanField
+from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length, Optional, Regexp, InputRequired
+from flask_wtf import FlaskForm
 
 
 class SignupForm(Form):
@@ -28,3 +29,15 @@ class LoginForm(Form):
     username = StringField('Username', [DataRequired()])
     password = PasswordField('Password', [DataRequired()])
     submit = SubmitField('Log In')
+
+
+
+class ResetPasswordRequestForm(FlaskForm):
+    email = StringField('Email', validators=[validators.DataRequired(), validators.Email()])
+    submit = SubmitField('Request Password Reset')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('Password', validators=[DataRequired()])
+    password2 = PasswordField(
+        'Repeat Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Request Password Reset')

@@ -31,13 +31,13 @@ def filter_sites(ms, regions):
     return list( set([ region
                     for modpep in ms.peptides
                     for region in regions
-                    if region.hasSite(modpep.peptide.site_pos) ]))
+                    if region.has_site(modpep.peptide.site_pos) ]))
 
 def filter_site_regions(ms, regions, types):
     return list( set([ region
                     for modpep in ms.peptides
                     for region in regions
-                    if region.hasSite(modpep.peptide.site_pos) and region.type in types ]))
+                    if region.has_site(modpep.peptide.site_pos) and region.type in types ]))
 
 def filter_regions(regions, types):
     return list( set([ region

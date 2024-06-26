@@ -172,9 +172,10 @@ class Experiment(db.Model):
         db.session.add(self)
         self.version_number += 1
         db.session.commit()
-        
-    # def delete(self):
-    #     DBSession.delete(self)
+       # to remove temporary experiments (ie batch search) 
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
         
     def copy_data(self, exp):
         self.name = exp.name
