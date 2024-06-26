@@ -128,7 +128,7 @@ class ProteinDomain(db.Model):
     def save(self):
         db.session.add(self)
 
-def has_site(self, site_pos):
+    def has_site(self, site_pos):
         if self.start is None or self.stop is None or site_pos is None:
             # Handle the case where one of the values is None. 
             # You might want to return False or raise a more specific error.
