@@ -173,7 +173,13 @@ class ProteinRegion(db.Model):
 
 
     def has_site(self, site_pos):
-        return self.start <= site_pos and site_pos <= self.stop
+        if self.start is not None and self.stop is not None:
+            return self.start <= site_pos and site_pos <= self.stop
+        else:
+        # Handle the case where self.start or self.stop is None.
+        # This might involve returning False, or implementing some other logic
+        # that makes sense for your application.
+            return False
 
 class Protein(db.Model):
     __tablename__='protein'
