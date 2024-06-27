@@ -239,23 +239,33 @@ def process_peptide_matches(success_df):
 
 # to process dataframes of successful sequence mapping to uniprot. Should just add a current tag to protein_id
 # Need to continue fixing this ONE 
-def update_protein_status_df(df):
+
+def update_protein_status(df, commit=True):
     df = df.dropna()
     protein_ids = df['protein_id'].tolist() 
+    df['current'] = 1 # setting record as updated 
+   # updated_proteins = [] 
+
+
     protein_records = protein.Protein.query.filter(protein.Protein.id.in_(protein_ids)).all()
 
-    for protein in protein_records: 
-        protein.current = 1
+    for protein_record in protein_records: 
+        protein_record.current = 1 
+        protein_record.date = datetime.datetime.now().date()
+
     
     db.session.flush() 
 
     # Inspect changes (this is just an example, adjust according to your model)
     updated_proteins = protein.Protein.query.filter(protein.Protein.id.in_(protein_ids)).all()
-    for protein in updated_proteins:
-        print(f"Protein ID: {protein.id}, Current: {protein.current}")
-    
-    db.session.rollback()
-
+    for protein_record in updated_proteins:
+        print(f"Protein ID: {protein_record.id}, Current: {protein_record.current}")
+    if commit:
+        db.session.commit()
+        print("Changes committed.")
+    else:
+        db.session.rollback()
+        print("Changes rolled back.")
 
 
 # Processing of proteins with uniprot sequences that do not match the database sequence.
