@@ -190,6 +190,7 @@ class Protein(db.Model):
     name = db.Column(db.String(100))
     date = db.Column(db.DateTime)
     species_id = db.Column(db.Integer, db.ForeignKey('species.id'))
+    current = db.Column(db.Boolean, default=False)
     
     accessions = db.relationship("ProteinAccession", order_by=ProteinAccession.type, cascade="all,delete-orphan")
     domains = db.relationship("ProteinDomain")

@@ -1,5 +1,6 @@
 
 import sys
+import datetime
 import os
 from flask_sqlalchemy import SQLAlchemy
 import csv
@@ -8,7 +9,9 @@ import pandas as pd
 import numpy as np
 from app.database import protein, modifications, experiment
 from multiprocessing import Pool 
-import requests
+from collections import defaultdict
+
+os.chdir('/Users/logan/proteome-scout-3/')
 
 # xAllows for the importing of modules from the proteomescout-3 app within the script
 SCRIPT_DIR = '/Users/saqibrizvi/Documents/NaegleLab/ProteomeScout-3/proteomescout-3'
@@ -234,12 +237,206 @@ def process_peptide_matches(success_df):
     
     return result
 
+# to process dataframes of successful sequence mapping to uniprot. Should just add a current tag to protein_id
+# Need to continue fixing this ONE 
+def update_protein_status_df(df):
+    df = df.dropna()
+    protein_ids = df['protein_id'].tolist() 
+    protein_records = protein.Protein.query.filter(protein.Protein.id.in_(protein_ids)).all()
+
+    for protein in protein_records: 
+        protein.current = 1
+    
+    db.session.flush() 
+
+    # Inspect changes (this is just an example, adjust according to your model)
+    updated_proteins = protein.Protein.query.filter(protein.Protein.id.in_(protein_ids)).all()
+    for protein in updated_proteins:
+        print(f"Protein ID: {protein.id}, Current: {protein.current}")
+    
+    db.session.rollback()
 
 
 
+# Processing of proteins with uniprot sequences that do not match the database sequence.
+# Function will find these, retain old protein_id to query other items, and commit with new records 
+# Needs to be fed failures_df from find_peptide_alignments
+def process_sequence_changes_and_commit(df, commit=True):
+    df = df.dropna()
+    old_protein_ids = df['protein_id'].tolist()
+    new_protein_records = []
+    df['current'] = 1 # setting the current status of the protein to 1
 
-new_canonical_sequences = {}
-from collections import defaultdict
+    for index, row in df.iterrows():
+        # Step 1: Instantiate the Protein object without arguments
+        new_protein = protein.Protein()
+        # Step 2: Set attributes individually
+        new_protein.sequence = row['canonical_seq']
+        new_protein.species_id = row['species_id']
+        new_protein.acc_gene = row['acc_gene']
+        new_protein.locus = row['locus']
+        new_protein.name = row['name']
+        new_protein.current = row['current']
+        new_protein.date = datetime.datetime.now().date()
+     
+
+        # Step 3: Add the new Protein to the session
+        db.session.add(new_protein)
+        new_protein_records.append(new_protein)
+
+    # Flush the session to get the new IDs assigned
+    db.session.flush()
+
+    updated_data = [
+        {
+            'new_protein_id': protein.id,  # Fetch the new ID assigned by the database
+            'name': protein.name,
+            'canonical_seq': protein.sequence,
+            'species_id': protein.species_id,
+            'acc_gene': protein.acc_gene,
+            'locus': protein.locus, 
+            'current': protein.current
+        }
+        for protein in new_protein_records
+    ]
+
+    updated_df = pd.DataFrame(updated_data)
+    updated_df['old_protein_id'] = old_protein_ids
+    print(updated_df)
+
+    if commit:
+        db.session.commit()
+        print("Changes committed.")
+    else:
+        db.session.rollback()
+        print("Changes rolled back.")
+
+    # Return the updated DataFrame
+    return updated_df
+
+# Function to replicate peptide records for protein_ids following sequence changes and addition of new records to db 
+# Will add new entries partially replicated from old entries, but with new protein_ids, and potentially new mapping 
+# Requires the dataframe produced from process_sequence_changes_and_commit
+def process_and_commit_new_peptides(df, new_prot_df, commit = True): 
+    old_peptide_ids = df['pep_id'].tolist()
+    old_protein_ids = df['protein_id'].tolist()
+    #new_protein_ids = new_prot_df['new_protein_id'].tolist()
+
+    new_peptide_records = [] 
+
+    protein_id_mapping = dict(zip(new_prot_df['old_protein_id'], new_prot_df['new_protein_id']))
+
+    df['new_protein_id'] = df['protein_id'].map(protein_id_mapping)
+    new_peptide_records = [] 
+
+    for index, row in df.iterrows():
+        # Step 1: Instantiate the Protein object without arguments
+        new_peptide = modifications.Peptide()
+
+        # Step 2: Set attributes individually
+        new_peptide.pep_aligned = row['pep_aligned']
+        new_peptide.site_pos = row['site_pos']
+        new_peptide.site_type = row['site_type']
+        new_peptide.protein_id = row['new_protein_id']
+  
+        db.session.add(new_peptide)
+        new_peptide_records.append(new_peptide)
+
+    db.session.flush()
+    
+    updated_pep_data = [
+        {
+            'new_pep_id': peptide.id,  # Fetch the new ID assigned by the database
+            'pep_aligned': peptide.pep_aligned,
+            'site_pos': peptide.site_pos,
+            'site_type': peptide.site_type,
+            'protein_id': peptide.protein_id
+        }
+        for peptide in new_peptide_records
+    ]
+
+    updated_peptides = pd.DataFrame(updated_pep_data)
+    updated_peptides['old_protein_id'] = old_protein_ids
+    updated_peptides['old_pep_id'] = old_peptide_ids
+    print(updated_peptides)
+
+    if commit:
+        db.session.commit()
+        print("Changes committed.")
+    else:
+        db.session.rollback()
+        print("Changes rolled back.")
+
+    # Return the updated DataFrame
+    return updated_peptides
+
+### Function to be called after creating new peptide entries for proteins with changed sequences/updated entries
+### Requires the result of process_and_commit_new_peptides and the dataframe of peptide modifications sourced from querying the database for mods 
+### with peptide_ids = old_peptide ids
+### Will create new partial duplicate entries for the peptide modifications with new peptide_ids that associate to new protein entries 
+def create_new_MS_mods_for_peptides(df_mods, new_pep_df, commit=True): 
+    
+    print(f"Initial df_mods entries: {len(df_mods)}")
+    
+    old_peptide_ids = df_mods['pep_id'].tolist()
+    
+    pep_id_to_new_pep_id = new_pep_df.set_index('old_pep_id')['new_pep_id'].to_dict()
+    
+    df_mods['pep_id'] = df_mods['pep_id'].astype(str)
+    
+    # Map old_pep_id to new_pep_id
+    df_mods['new_pep_id'] = df_mods['pep_id'].map(pep_id_to_new_pep_id)
+    
+    # Optional: Handle rows with NaN in 'new_pep_id' if necessary
+    # df_mods = df_mods.dropna(subset=['new_pep_id'])
+    
+    print(f"Entries after mapping: {len(df_mods)}")
+    
+    new_mod_records = []
+    
+
+    for index, row in df_mods.iterrows():
+        # Step 1: Instantiate the Protein object without arguments
+        new_mod = modifications.PeptideModification()
+
+        # Step 2: Set attributes individually
+        new_mod.MS_id = row['MS_id']
+        new_mod.modification_id = row['modificiation_id']
+        new_mod.peptide_id = row['new_pep_id']
+  
+        db.session.add(new_mod)
+        new_mod_records.append(new_mod)
+
+    db.session.flush()
+
+    updated_mod_data = [
+        {
+            'new_mod_id': mod.id,  # Fetch the new ID assigned by the database
+            'MS_id': mod.MS_id,
+            'modification_id': mod.modification_id,
+            'pep_id': mod.peptide_id
+        }
+        for mod in new_mod_records
+    ]
+
+    updated_mods = pd.DataFrame(updated_mod_data)
+    updated_mods['old_pep_ids'] = old_peptide_ids
+    
+    print(updated_mods)
+
+    if commit:
+        db.session.commit()
+        print("Changes committed.")
+    else:
+        db.session.rollback()
+        print("Changes rolled back.")
+
+    # Return the updated DataFrame
+    return updated_mods
+
+    
+
+
 
 with app.app_context():
     # Fetch all protein entries
@@ -258,6 +455,7 @@ with app.app_context():
             'name': entry.name,
             'sequence': entry.sequence,
             'species_id': entry.species_id,
+            'locus': entry.locus,
             'acc_gene': entry.acc_gene,
             'name': entry.name,
                 # Assuming you want to keep the sequence for comparison
@@ -277,9 +475,9 @@ with app.app_context():
     # Step 2: Batch request to UniProt
     df = get_uniprot_sequence(df)
     df = df.drop(['type', 'requested', 'value'], axis=1)
-    df = df.drop_duplicates(subset=['protein_id'])
+    df = df.drop_duplicates(subset=['protein_id']) # removing duplicate protein_ids before processing
     
-    #print(df)
+    # collecting instances of protein sequences that match the current uniprot sequence or dont match
     unmatched_entries = []
     
     matched_entries = [] 
@@ -304,12 +502,17 @@ with app.app_context():
                 
     #print(unmatched_entries)
     unmatched_df = pd.DataFrame(unmatched_entries)
+    matched_df = pd.DataFrame(matched_entries) # need to set status of these as current in the database
 
-    # need to do an add here for new protein entries 
-    # then create a dict of the old protein.id and new protein.id
-    # then update the protein_id in the peptide data
+    # updating the matched entries in db as current 
+    #update_protein_status_df(matched_df)
+    # commit unmatched_df protein entries to the database
 
     unmatched_protein_ids = [entry['protein_id'] for entry in unmatched_entries]
+
+    # adding new protein entries for new protein sequences to the database and retaining old info for association
+    updated_seq_df = process_sequence_changes_and_commit(unmatched_df, commit=False)
+
 
     # Now, query for all peptides that have a protein_id in unmatched_protein_ids
     unmatched_peptides = modifications.Peptide.query.filter(modifications.Peptide.protein_id.in_(unmatched_protein_ids)).all()
@@ -339,10 +542,11 @@ with app.app_context():
 
     # Getting teh 
     # Assuming 'successes' is your DataFrame and it contains a column 'pep_id' with the peptide IDs
-    pep_ids = all_peptides['pep_id'].to_list()
+    old_pep_ids = all_peptides['pep_id'].to_list()
 
+    # Add line to commit new peptides and retrieve the new IDs associated with them 
     # Now, use these pep_ids to filter PeptideModification entries
-    mods_data = modifications.PeptideModification.query.filter(modifications.PeptideModification.peptide_id.in_(pep_ids)).all()
+    mods_data = modifications.PeptideModification.query.filter(modifications.PeptideModification.peptide_id.in_(old_pep_ids)).all()
 
     mods = []
     for m in mods_data:
@@ -352,49 +556,7 @@ with app.app_context():
             'pep_id': m.peptide_id, 
             'modificiation_id': m.modification_id,
             })
+    mods_df = pd.DataFrame(mods)
     
 
-
-# combining the acc_df and seq_df on the protein_id column
-def combine_process_protein(acc_df, seq_df): 
-    # filter out only primary accessions 
-    acc_df = acc_df[acc_df['type'] == 'swissprot']
-    acc_df = acc_df[acc_df['primary_acc'] == True]
-
-    # merge the two dataframes 
-    combined_df = pd.merge(acc_df, seq_df, left_on='protein_id', right_on='id', how='inner')
-
-    return combined_df
-
-
-
-#mismatch_subset = mismatches
-
-def get_isoform_data(accession):
-    print(f"Processing {accession}")
-    requestURL = f"https://www.ebi.ac.uk/proteins/api/proteins/{accession}/isoforms"
     
-    with requests.Session() as session:
-        session.headers.update({ "Accept" : "application/json"})
-        r = session.get(requestURL)
-
-        if not r.ok:
-            if r.status_code == 404:
-                print(f"No data for {accession}")
-                return pd.Series()  # return an empty Series for 404 errors
-            else:
-                print(f"processing {accession}")
-                r.raise_for_status()
-                sys.exit()
-
-        data = r.json()
-        row = {}
-
-        for i, isoform in enumerate(data, 1):
-            #print(f"Processing isoform {i} for {accession}")
-            if 'protein' in isoform and 'recommendedName' in isoform['protein'] and 'fullName' in isoform['protein']['recommendedName']:
-                row[f"Isoform {i} Accession"] = isoform['accession']
-            if 'sequence' in isoform:
-                row[f"Isoform {i} Sequence"] = isoform['sequence']['sequence']
-
-        return pd.Series(row)
