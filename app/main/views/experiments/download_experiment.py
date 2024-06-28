@@ -97,7 +97,7 @@ def download_experiment(experiment_id):
 
 
         export_tasks.run_experiment_export_job.apply_async(
-            args=(annotate, export_id, experiment_id, user_id, job_id, exp_filename, result_url, user_email),
+            args=(annotate, export_id, experiment_id, user_id, exp_filename, result_url, user_email, job_id),
         )
         return render_template('proteomescout/info/information.html',
                                    title=strings.experiment_downloand_submitted_page_title,
