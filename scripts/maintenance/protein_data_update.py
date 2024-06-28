@@ -36,6 +36,8 @@ app = create_app()
 db.init_app(app)
 
 
+## __________________Helper     Functions______________________ ##
+
 def get_uniprot_sequence(df):
     accessions = df[df['type'] == 'swissprot']['value'].tolist()
 
@@ -70,13 +72,6 @@ def get_uniprot_sequence(df):
 
     return df
 
-# mapping peptide records to proteins 
-# Going through the peptide data, this function will find the peptide alignments for the protein data and mismatches
-# and return a dataframe of successes and failures
-# successes will include when there is a successful alignment, even if in wrong position, but misalignment site will be reported
-# failures will include when there is no alignment
-# this one is looking for the uniprot defined sequence
-# 
 
 def find_peptide_alignments(peptide_data, protein_seq_data):
     # Updated DataFrame columns to include new fields
@@ -268,6 +263,7 @@ def update_protein_status(df, commit=True):
         print("Changes rolled back.")
 
 
+
 # Processing of proteins with uniprot sequences that do not match the database sequence.
 # Function will find these, retain old protein_id to query other items, and commit with new records 
 # Needs to be fed failures_df from find_peptide_alignments
@@ -444,129 +440,125 @@ def create_new_MS_mods_for_peptides(df_mods, new_pep_df, commit=True):
     # Return the updated DataFrame
     return updated_mods
 
-    
 
 
 
-with app.app_context():
-    # Fetch all protein entries
-    protein_seq = protein.Protein.query.limit(100).all()
+## __________________Main Function- Update Script______________________ ##
 
-    # Step 1: Collect all accessions
-    accession_to_protein = defaultdict(list)
-    #print(accession_to_protein.keys())
+## Need to build batch functionality and query larger numbers but works in a test of a few hundred records 
 
 
-    for entry in protein_seq:
-        protein_acc = protein.ProteinAccession.query.filter_by(protein_id=entry.id, type='swissprot').all()
-        for accession in protein_acc:
-            accession_to_protein[accession.value].append({
-            'protein_id': entry.id,
-            'name': entry.name,
-            'sequence': entry.sequence,
-            'species_id': entry.species_id,
-            'locus': entry.locus,
-            'acc_gene': entry.acc_gene,
-            'name': entry.name,
-                # Assuming you want to keep the sequence for comparison
+def update_protein_data():
+    with app.app_context():
+        # Fetch all protein entries
+        protein_seq = protein.Protein.query.limit(100).all()
+
+        # Step 1: Collect all accessions
+        accession_to_protein = defaultdict(list)
+
+        for entry in protein_seq:
+            protein_acc = protein.ProteinAccession.query.filter_by(protein_id=entry.id, type='swissprot').all()
+            for accession in protein_acc:
+                accession_to_protein[accession.value].append({
+                    'protein_id': entry.id,
+                    'name': entry.name,
+                    'sequence': entry.sequence,
+                    'species_id': entry.species_id,
+                    'locus': entry.locus,
+                    'acc_gene': entry.acc_gene,
+                    'name': entry.name,
+                })
+
+        df = pd.DataFrame({
+            'type': ['swissprot'] * len(accession_to_protein),
+            'value': list(accession_to_protein.keys()),
+            'protein_id': [entry['protein_id'] for value_list in accession_to_protein.values() for entry in value_list]
         })
-    
-    #print(entry)
-    
-    # Prepare DataFrame for batch request
-    #df = pd.DataFrame({'type': ['swissprot'] * len(accession_to_protein), 'value': list(accession_to_protein.keys())})
-    df = pd.DataFrame({
-        'type': ['swissprot'] * len(accession_to_protein),
-        'value': list(accession_to_protein.keys()),
-        'protein_id': [entry['protein_id'] for value_list in accession_to_protein.values() for entry in value_list]
-        })
-    #print(df)
-    
-    # Step 2: Batch request to UniProt
-    df = get_uniprot_sequence(df)
-    df = df.drop(['type', 'requested', 'value'], axis=1)
-    df = df.drop_duplicates(subset=['protein_id']) # removing duplicate protein_ids before processing
-    
-    # collecting instances of protein sequences that match the current uniprot sequence or dont match
-    unmatched_entries = []
-    
-    matched_entries = [] 
-    # Step 3: Process sequences
-    for index, row in df.iterrows():
-        uniprot_sequence = row['canonical_seq']
-        accession_value = row['primary']
-        protein_id = row['protein_id']
-        print(f"Processing Accession: {accession_value}, UniProt Sequence: {uniprot_sequence}")
-     
-        # Get the protein entries associated with this accession
-        entries = accession_to_protein[accession_value]
 
-        for entry in entries:
-            print(f"  Checking Protein ID: {entry['protein_id']}")
-            if uniprot_sequence != entry['sequence']:
-                entry['canonical_seq'] = uniprot_sequence  # Add the uniprot_sequence to the entry
-                unmatched_entries.append(entry)
-            else: 
-                print(f"    Sequence Match: Marking protein ID {entry['protein_id']} as current.")
-                matched_entries.append(entry)
-                
-    #print(unmatched_entries)
-    unmatched_df = pd.DataFrame(unmatched_entries)
-    matched_df = pd.DataFrame(matched_entries) # need to set status of these as current in the database
+        # Step 2: Batch request to UniProt
+        df = get_uniprot_sequence(df)
+        df = df.drop(['type', 'requested', 'value'], axis=1)
+        df = df.drop_duplicates(subset=['protein_id'])
 
-    # updating the matched entries in db as current 
-    #update_protein_status_df(matched_df)
-    # commit unmatched_df protein entries to the database
+        unmatched_entries = []
+        matched_entries = []
 
-    unmatched_protein_ids = [entry['protein_id'] for entry in unmatched_entries]
+        # Step 3: Process sequences
+        for index, row in df.iterrows():
+            uniprot_sequence = row['canonical_seq']
+            accession_value = row['primary']
+            protein_id = row['protein_id']
 
-    # adding new protein entries for new protein sequences to the database and retaining old info for association
-    updated_seq_df = process_sequence_changes_and_commit(unmatched_df, commit=False)
+            entries = accession_to_protein[accession_value]
+
+            for entry in entries:
+                if uniprot_sequence != entry['sequence']:
+                    entry['canonical_seq'] = uniprot_sequence
+                    unmatched_entries.append(entry)
+                else:
+                    matched_entries.append(entry)
+
+        unmatched_df = pd.DataFrame(unmatched_entries)
+        matched_df = pd.DataFrame(matched_entries)
+
+        # Commit updates to unchanged sequences 
+        updated_matches = update_protein_status(unmatched_df, commit=True)
+
+        # Extracting the protein_ids of unmatched entries to query for peptides 
+        unmatched_protein_ids = [entry['protein_id'] for entry in unmatched_entries]
+
+        # Commiting new protein ids for changed sequences 
+        updated_seq_df = process_sequence_changes_and_commit(unmatched_df, commit=True)
 
 
-    # Now, query for all peptides that have a protein_id in unmatched_protein_ids
-    unmatched_peptides = modifications.Peptide.query.filter(modifications.Peptide.protein_id.in_(unmatched_protein_ids)).all()
-
-                # converting the peptides data into a dataframe 
-    peptide_data = []
-    for p in unmatched_peptides:
-        peptide_data.append({
+        # Querying for peptides associated with unmatched protein_ids
+        unmatched_peptides = modifications.Peptide.query.filter(modifications.Peptide.protein_id.in_(unmatched_protein_ids)).all()
+        # Compiling data from database query
+        peptide_data = [{
             'pep_id': p.id,
             'scansite_date': p.scansite_date,
-            'pep_aligned': p.pep_aligned, 
-            'site_pos': p.site_pos, 
+            'pep_aligned': p.pep_aligned,
+            'site_pos': p.site_pos,
             'site_type': p.site_type,
             'protein_domain_id': p.protein_domain_id,
             'protein_id': p.protein_id,
-            })
+        } for p in unmatched_peptides]
 
-    peptide_df = pd.DataFrame(peptide_data)
-                #print(df)
-                # Call find_peptide_alignments
-    successes, failures = find_peptide_alignments(peptide_data, unmatched_df)
+        # converting to dataframe to use for mapping peptide alignments
+        peptide_df = pd.DataFrame(peptide_data)
 
-    successes = process_peptide_matches(successes)
-    failures = process_peptide_mismatches(failures)
+        # Mapping peptide alignments to new protein sequences to see if they still align and if site_positions are still accurate
+        successes, failures = find_peptide_alignments(peptide_data, unmatched_df)
 
-    all_peptides = pd.concat([successes, failures], axis=0)
+        # processing successful and failed alignments
+        # failed = sequences that do not align with new protein sequences or don't match the site_pos
+        # successful = sequences that align with new protein sequences and match the site_pos
+        successes = process_peptide_matches(successes)
+        failures = process_peptide_mismatches(failures)
 
-    # Getting teh 
-    # Assuming 'successes' is your DataFrame and it contains a column 'pep_id' with the peptide IDs
-    old_pep_ids = all_peptides['pep_id'].to_list()
+        # after processing, compiling peptide data to commit new peptide entries
+        all_peptides = pd.concat([successes, failures], axis=0)
+        old_pep_ids = all_peptides['pep_id'].to_list() # keeping old peptide ids to query for original modification records
 
-    # Add line to commit new peptides and retrieve the new IDs associated with them 
-    # Now, use these pep_ids to filter PeptideModification entries
-    mods_data = modifications.PeptideModification.query.filter(modifications.PeptideModification.peptide_id.in_(old_pep_ids)).all()
+        new_pep_df = process_and_commit_new_peptides(all_peptides, updated_seq_df, commit=True)
 
-    mods = []
-    for m in mods_data:
-        mods.append({
+        # Querying for peptide modifications associated with old peptide_ids
+        mods_data = modifications.PeptideModification.query.filter(modifications.PeptideModification.peptide_id.in_(old_pep_ids)).all()
+        # collecting mods for new peptide ids 
+        mods = [{
             'mod_id': m.id,
             'MS_id': m.MS_id,
-            'pep_id': m.peptide_id, 
+            'pep_id': m.peptide_id,
             'modificiation_id': m.modification_id,
-            })
-    mods_df = pd.DataFrame(mods)
-    
+        } for m in mods_data]
 
-    
+        mods_df = pd.DataFrame(mods)
+
+        # creating new peptide modifications for new peptide ids based on original record mods 
+        new_mods_df = create_new_MS_mods_for_peptides(mods_df, new_pep_df, commit=True)
+
+        # Return or process DataFrames as needed
+        return updated_matches, updated_seq_df, new_pep_df, new_mods_df
+
+# Remember to call the function where needed
+# update_protein_data()
