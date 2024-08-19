@@ -448,10 +448,15 @@ def create_new_MS_mods_for_peptides(df_mods, new_pep_df, commit=True):
 ## Need to build batch functionality and query larger numbers but works in a test of a few hundred records 
 
 
-def update_protein_data():
+def update_protein_data(offset = 0, limit = 100):
     with app.app_context():
         # Fetch all protein entries
-        protein_seq = protein.Protein.query.limit(100).all()
+        #protein_seq = protein.Protein.query.limit(100).all()
+        protein_seq = protein.Protein.query.offset(offset).limit(limit).all()
+
+        if not protein_seq:
+            return False  # Indicates no more data to process
+        
 
         # Step 1: Collect all accessions
         accession_to_protein = defaultdict(list)
@@ -558,7 +563,20 @@ def update_protein_data():
         new_mods_df = create_new_MS_mods_for_peptides(mods_df, new_pep_df, commit=True)
 
         # Return or process DataFrames as needed
-        return updated_matches, updated_seq_df, new_pep_df, new_mods_df
+        return updated_matches, updated_seq_df, new_pep_df, new_mods_df, True
 
 # Remember to call the function where needed
 # update_protein_data()
+
+### Function to run in batch-wise fashion 
+
+def batch_process_update_protein_data(batch_size=100):
+    offset = 0
+    more_data = True
+
+    while more_data:
+        more_data = update_protein_data(offset=offset, limit=batch_size)
+        offset += batch_size
+
+# Call the batch processing function to start 
+batch_process_update_protein_data()
