@@ -21,7 +21,7 @@ def init_celery(celery, app):
             'task': 'app.utils.email.send_email_with_logs',  # replace with the actual name of your task
             #'schedule': crontab(minute='*/10'), 
             'schedule': crontab(minute='0', hour='*/6'),  # execute every 6 hours'schedule'
-            'args': ('zxa7aw@virginia.edu', 'Daily Log Email', 'Here are the logs for today.'),  # replace with your actual arguments
+            'args': ('frh7zc@virginia.edu', 'Daily Log Email', 'Here are the logs for today.'),  # replace with your actual arguments
             # Set email to whoever is primarily responsible for app
         },
     }
