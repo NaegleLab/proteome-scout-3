@@ -120,6 +120,9 @@ def create_app(config_class=Config, celery=celery):
     from app.main.views.files import bp as  compendia_bp
     app.register_blueprint(compendia_bp, url_prefix = '/compendia')
 
+    from app.main.views.kstar import bp as kstar_bp
+    app.register_blueprint(kstar_bp, url_prefix = '/kstar')
+
 
     # from app.api import bp as api_bp
     # app.register_blueprint(api_bp, url_prefix='/api')
@@ -210,5 +213,4 @@ from app.database import user
 #                     "status": "error",
 #                     "message": "Couldn't handle user block request: "+str(ex)
 #                 }
-#             ), 400)
-
+#), 400)
