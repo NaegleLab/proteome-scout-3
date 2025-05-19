@@ -129,6 +129,10 @@ class ProteinDomain(db.Model):
         db.session.add(self)
 
     def has_site(self, site_pos):
+        if self.start is None or self.stop is None or site_pos is None:
+            # Handle the case where one of the values is None. 
+            # You might want to return False or raise a more specific error.
+            return False
         return self.start <= site_pos and site_pos <= self.stop
 
 # class ProteinSourceEnum(enum.Enum):

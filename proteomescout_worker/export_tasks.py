@@ -153,13 +153,15 @@ def get_experiment_data(exp, data_labels):
 @celery.task
 @upload_helpers.notify_job_failed
 @upload_helpers.dynamic_transaction_task
-def run_experiment_export_job(annotate, export_id, exp_id, user_id, job_id, exp_filename, result_url, user_email):
+def run_experiment_export_job(annotate, export_id, exp_id, user_id, exp_filename, result_url, user_email, job_id):
+    print(job_id)
     notify_tasks.set_job_status.apply_async((job_id, 'started'))
     notify_tasks.set_job_stage.apply_async((job_id, 'exporting', 0))
 
     #exp_filename = 'experiment_%s_%s.tsv' % (exp_id, export_id)
     #exp_filename = 'experiment_29.tsv' #% (int(exp_id), user_id, int(export_id))
-    exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
+    #exp_path = os.path.join(settings.ptmscout_path, settings.annotation_export_file_path, exp_filename)
+    exp_path = os.path.join(str(settings.ptmscout_path), str(settings.annotation_export_file_path), str(exp_filename))
 
     # Create the directory if it does not exist
     os.makedirs(os.path.dirname(exp_path), exist_ok=True)
