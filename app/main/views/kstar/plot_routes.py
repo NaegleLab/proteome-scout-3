@@ -221,7 +221,7 @@ def update_plot():
             fpr_df = fpr_df[selected_samples]
         
         # Get custom column labels
-        custom_xlabels = extract_custom_labels(log_results)
+       #custom_xlabels = extract_custom_labels(log_results)
         
         # Configure sorting settings
         sort_settings = {
@@ -257,6 +257,9 @@ def update_plot():
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
             log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
         )
+
+        # Get custom column labels
+        custom_xlabels = extract_custom_labels(log_results)
         
         # Determine whether to use integrated plot with dendrograms
         use_integrated_plot = parse_bool(request.form.get('useIntegratedPlot', 'true'))
