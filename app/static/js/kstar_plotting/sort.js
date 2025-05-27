@@ -59,36 +59,36 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateKinaseList() {
         const list = document.getElementById('sortableKinaseList');
         if (!list) return;
-        list.innerHTML = '';
-
-        // --- Minimal change starts here ---
-        const restrictKinasesCheckbox = document.getElementById('restrictKinases');
-        const isRestricted = restrictKinasesCheckbox ? restrictKinasesCheckbox.checked : false;
+        
+        list.innerHTML = ''; // Clear existing list
+        
+        // Determine which kinases to show based on restrict setting
+        const restrictCheckbox = document.getElementById('restrictKinases');
+        const isRestricted = restrictCheckbox ? restrictCheckbox.checked : false;
         let kinasesToShow = window.availableKinases || [];
 
         if (isRestricted && window.plotActive) {
+            // If restricted and plot is active, get kinases from current log_results
             const logResultsJson = document.getElementById('logResultsJSON')?.value;
             if (logResultsJson) {
                 try {
                     const logResultsData = JSON.parse(logResultsJson);
-                    let significantKinases = [];
                     const sampleNames = Object.keys(logResultsData);
                     if (sampleNames.length > 0) {
                         const firstSample = logResultsData[sampleNames[0]];
                         if (firstSample && typeof firstSample === 'object') {
-                            significantKinases = Object.keys(firstSample);
+                            kinasesToShow = Object.keys(firstSample);
                         }
                     }
-                    kinasesToShow = significantKinases;
                 } catch (e) {
+                    console.error('Error parsing logResultsJSON in updateKinaseList:', e);
                     kinasesToShow = [];
                 }
             } else {
                 kinasesToShow = [];
             }
         }
-        // --- Minimal change ends here ---
-
+        
         kinasesToShow.forEach(kinase => {
             const li = document.createElement('li');
             li.className = 'sortable-item';

@@ -96,10 +96,8 @@ function displayPlotResults(data) {
 
   const statusField = document.getElementById('plotStatusField');
   if (statusField) statusField.value = '1';
-
-  // Always update kinase select after plot update
-  updateKinaseSelect();
-  if (typeof window.updateKinaseList === "function") window.updateKinaseList();
+  
+  // Update kinase dropdown to reflect current restriction state
 }
 
 // AJAX interactions
@@ -142,7 +140,33 @@ function submitForm() {
 
   const manualOrder = document.getElementById('manualKinaseOrderJSON').value;
   if (manualOrder && document.querySelector('input[name="sortKinases"]:checked').value === 'manual') {
-    formData.append('manualKinaseOrder', manualOrder);
+    let orderToSend = manualOrder;
+    
+    // Filter manual order if kinases are restricted to significant
+    const restrictCheckbox = document.getElementById('restrictKinases');
+    if (restrictCheckbox && restrictCheckbox.checked && window.plotActive) {
+      const logResultsJson = document.getElementById('logResultsJSON')?.value;
+      if (logResultsJson) {
+        try {
+          const logResultsData = JSON.parse(logResultsJson);
+          const sampleNames = Object.keys(logResultsData);
+          if (sampleNames.length > 0) {
+            const firstSample = logResultsData[sampleNames[0]];
+            if (firstSample && typeof firstSample === 'object') {
+              const significantKinases = Object.keys(firstSample);
+              const currentOrder = JSON.parse(manualOrder);
+              // Filter the manual order to only include significant kinases
+              const filteredOrder = currentOrder.filter(kinase => significantKinases.includes(kinase));
+              orderToSend = JSON.stringify(filteredOrder);
+            }
+          }
+        } catch (e) {
+          console.error('Error filtering manual kinase order for significant kinases:', e);
+        }
+      }
+    }
+    
+    formData.append('manualKinaseOrder', orderToSend);
   }
 
   formData.append('showPlot', document.getElementById('showPlot').checked);
@@ -270,28 +294,29 @@ function exportSpecificData(dataType, userFileNameParam) {
 function updateKinaseSelect() {
   const mode = document.getElementById('manualKinaseEdit').value;
   if (mode === 'none') return;
-  const select = $('#kinaseSelect').empty();
+  
+  const select = $('#kinaseSelect');
+  const currentSelection = select.val() || []; // Preserve current selection
+  select.empty();
 
-  // --- Minimal change starts here ---
-  const restrictKinasesCheckbox = document.getElementById('restrictKinases');
-  const isRestricted = restrictKinasesCheckbox ? restrictKinasesCheckbox.checked : false;
+  // Determine which kinases to show based on restrict setting
+  const restrictCheckbox = document.getElementById('restrictKinases');
+  const isRestricted = restrictCheckbox ? restrictCheckbox.checked : false;
   let kinasesToShow = window.availableKinases || [];
 
   if (isRestricted && window.plotActive) {
+    // If restricted and plot is active, get kinases from current log_results
     const logResultsJson = document.getElementById('logResultsJSON')?.value;
     if (logResultsJson) {
       try {
         const logResultsData = JSON.parse(logResultsJson);
-        let significantKinases = [];
-        // Default pandas to_json orient='columns'
         const sampleNames = Object.keys(logResultsData);
         if (sampleNames.length > 0) {
           const firstSample = logResultsData[sampleNames[0]];
           if (firstSample && typeof firstSample === 'object') {
-            significantKinases = Object.keys(firstSample);
+            kinasesToShow = Object.keys(firstSample);
           }
         }
-        kinasesToShow = significantKinases;
       } catch (e) {
         kinasesToShow = [];
       }
@@ -299,9 +324,14 @@ function updateKinaseSelect() {
       kinasesToShow = [];
     }
   }
-  // --- Minimal change ends here ---
 
+  // Populate dropdown with appropriate kinases
   kinasesToShow.forEach(k => select.append(new Option(k, k)));
+  
+  // Restore valid selections
+  const validSelection = currentSelection.filter(k => kinasesToShow.includes(k));
+  select.val(validSelection);
+
   select.select2({
     placeholder: mode === 'select' ? 'Select kinases to include...' : 'Select kinases to remove...',
     allowClear: true,
