@@ -195,12 +195,20 @@ def update_plot():
         # Parse JSON data back to DataFrames
         log_results = pd.read_json(orig_log_json)
         fpr_df = pd.read_json(orig_fpr_json)
+
+        binary_evidence_df = None 
         
         # Extract plot configuration parameters
         plot_params = extract_plot_params()
         plot_settings = extract_plot_settings()
         binary_sig = (request.form.get('significantActivity', 'binary') == 'binary')
         dendrogram_settings = extract_dendrogram_settings()
+
+        # Apply significance-based filtering if requested
+        if parse_bool(request.form.get('restrictKinases', 'false')):
+            log_results, fpr_df, binary_evidence_df = filter_significant_kinases(
+                log_results, fpr_df, binary_evidence_df
+            )
         
         # Apply kinase filtering (select or remove mode)
         kinase_edit_mode = request.form.get('manualKinaseEdit', 'none')
@@ -220,42 +228,18 @@ def update_plot():
             log_results = log_results[selected_samples]
             fpr_df = fpr_df[selected_samples]
         
-        # Get custom column labels
-       #custom_xlabels = extract_custom_labels(log_results)
-        
         # Configure sorting settings
         sort_settings = {
             'kinases_mode': request.form.get('sortKinases', 'none'),
             'samples_mode': request.form.get('sortSamples', 'none')
         }
         
-        # Apply manual kinase ordering if requested
-        if sort_settings.get('kinases_mode') == 'manual':
-            manual_order = safe_json_loads(request.form.get('manualKinaseOrder', '[]'), [])
-            if manual_order and all(k in log_results.index for k in manual_order):
-                log_results = log_results.reindex(manual_order)
-                fpr_df = fpr_df.reindex(manual_order)
-        
-        # Apply activity-based kinase sorting
-        if sort_settings.get('kinases_mode', '').startswith('by_activity_'):
-            ascending = sort_settings['kinases_mode'].endswith('_asc')
-            if not log_results.empty:
-                sample_to_sort_by = log_results.columns[0]
-                log_results = log_results.sort_values(by=sample_to_sort_by, ascending=ascending)
-                fpr_df = fpr_df.reindex(log_results.index)
-                
-        # Apply activity-based sample sorting
-        if sort_settings.get('samples_mode', '').startswith('by_activity_'):
-            ascending = sort_settings['samples_mode'].endswith('_asc')
-            if not log_results.empty:
-                kinase_to_sort_by = log_results.index[0]
-                sorted_cols = log_results.loc[kinase_to_sort_by].sort_values(ascending=ascending).index
-                log_results = log_results[sorted_cols]
-                fpr_df = fpr_df[sorted_cols]
-        
-        # Apply hierarchical clustering if requested, and get linkage matrices
+        # Apply non-hierarchical sorting using the common function
+        log_results, fpr_df, _ = apply_sorting(log_results, fpr_df, None, sort_settings) # Pass None for binary_evidence_df if not modified by this sort
+
+        # Apply hierarchical clustering if requested
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
-            log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
+            log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings # Pass None for binary_evidence_df
         )
 
         # Get custom column labels
@@ -342,9 +326,6 @@ def download_plot():
             'samples_mode': request.form.get('sortSamples', 'none')
         }
 
-        # Get custom column labels
-        custom_xlabels = extract_custom_labels(log_results)
-
         # Apply filtering and sorting based on current UI state
         # (Similar to update_plot but using the current state data)
         kinase_edit_mode = request.form.get('manualKinaseEdit', 'none')
@@ -368,6 +349,9 @@ def download_plot():
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
             log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
         )
+
+        # Get custom column labels
+        custom_xlabels = extract_custom_labels(log_results)
 
         # Create a Matplotlib figure object for the download
         if use_integrated_plot:

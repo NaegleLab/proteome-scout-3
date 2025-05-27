@@ -70,6 +70,9 @@ function getUpdateFormData() {
     if (manualKinaseOrder) formData.append('manualKinaseOrder', manualKinaseOrder);
   }
 
+  // *** ADD THIS LINE ***
+  formData.append('restrictKinases', document.getElementById('restrictKinases').checked);
+
   return formData;
 }
 
@@ -93,6 +96,10 @@ function displayPlotResults(data) {
 
   const statusField = document.getElementById('plotStatusField');
   if (statusField) statusField.value = '1';
+
+  // Always update kinase select after plot update
+  updateKinaseSelect();
+  if (typeof window.updateKinaseList === "function") window.updateKinaseList();
 }
 
 // AJAX interactions
@@ -264,7 +271,37 @@ function updateKinaseSelect() {
   const mode = document.getElementById('manualKinaseEdit').value;
   if (mode === 'none') return;
   const select = $('#kinaseSelect').empty();
-  window.availableKinases.forEach(k => select.append(new Option(k, k)));
+
+  // --- Minimal change starts here ---
+  const restrictKinasesCheckbox = document.getElementById('restrictKinases');
+  const isRestricted = restrictKinasesCheckbox ? restrictKinasesCheckbox.checked : false;
+  let kinasesToShow = window.availableKinases || [];
+
+  if (isRestricted && window.plotActive) {
+    const logResultsJson = document.getElementById('logResultsJSON')?.value;
+    if (logResultsJson) {
+      try {
+        const logResultsData = JSON.parse(logResultsJson);
+        let significantKinases = [];
+        // Default pandas to_json orient='columns'
+        const sampleNames = Object.keys(logResultsData);
+        if (sampleNames.length > 0) {
+          const firstSample = logResultsData[sampleNames[0]];
+          if (firstSample && typeof firstSample === 'object') {
+            significantKinases = Object.keys(firstSample);
+          }
+        }
+        kinasesToShow = significantKinases;
+      } catch (e) {
+        kinasesToShow = [];
+      }
+    } else {
+      kinasesToShow = [];
+    }
+  }
+  // --- Minimal change ends here ---
+
+  kinasesToShow.forEach(k => select.append(new Option(k, k)));
   select.select2({
     placeholder: mode === 'select' ? 'Select kinases to include...' : 'Select kinases to remove...',
     allowClear: true,

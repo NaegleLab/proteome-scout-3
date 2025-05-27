@@ -58,11 +58,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update the sortable kinase list
     function updateKinaseList() {
         const list = document.getElementById('sortableKinaseList');
-        if (!list || !window.availableKinases) return;
-        
-        list.innerHTML = ''; // Clear existing list
-        
-        window.availableKinases.forEach(kinase => {
+        if (!list) return;
+        list.innerHTML = '';
+
+        // --- Minimal change starts here ---
+        const restrictKinasesCheckbox = document.getElementById('restrictKinases');
+        const isRestricted = restrictKinasesCheckbox ? restrictKinasesCheckbox.checked : false;
+        let kinasesToShow = window.availableKinases || [];
+
+        if (isRestricted && window.plotActive) {
+            const logResultsJson = document.getElementById('logResultsJSON')?.value;
+            if (logResultsJson) {
+                try {
+                    const logResultsData = JSON.parse(logResultsJson);
+                    let significantKinases = [];
+                    const sampleNames = Object.keys(logResultsData);
+                    if (sampleNames.length > 0) {
+                        const firstSample = logResultsData[sampleNames[0]];
+                        if (firstSample && typeof firstSample === 'object') {
+                            significantKinases = Object.keys(firstSample);
+                        }
+                    }
+                    kinasesToShow = significantKinases;
+                } catch (e) {
+                    kinasesToShow = [];
+                }
+            } else {
+                kinasesToShow = [];
+            }
+        }
+        // --- Minimal change ends here ---
+
+        kinasesToShow.forEach(kinase => {
             const li = document.createElement('li');
             li.className = 'sortable-item';
             li.innerHTML = `
