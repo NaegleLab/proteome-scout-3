@@ -69,19 +69,33 @@
           <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesNone" value="none" checked />
           <label class="form-check-label" for="sortSamplesNone">No Sorting</label>
         </div>
+        <!-- New Radio Buttons for Sorting by Selected Kinase -->
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesActivityDesc" value="by_activity_desc" />
-          <label class="form-check-label" for="sortSamplesActivityDesc">By Activity (High to Low)</label>
+          <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesBySelectedKinaseDesc" value="by_selected_kinase_desc" />
+          <label class="form-check-label" for="sortSamplesBySelectedKinaseDesc">By Selected Kinase (High to Low)</label>
         </div>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesActivityAsc" value="by_activity_asc" />
-          <label class="form-check-label" for="sortSamplesActivityAsc">By Activity (Low to High)</label>
+          <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesBySelectedKinaseAsc" value="by_selected_kinase_asc" />
+          <label class="form-check-label" for="sortSamplesBySelectedKinaseAsc">By Selected Kinase (Low to High)</label>
         </div>
+        <!-- End New Radio Buttons -->
         <div class="form-check">
           <input class="form-check-input" type="radio" name="sortSamples" id="sortSamplesHier" value="by_clustering" />
           <label class="form-check-label" for="sortSamplesHier">By Hierarchical Clustering</label>
         </div>
       </div>
+
+      <!-- Container for Selecting Reference Kinase for Sample Sorting -->
+      <div id="sampleSortRefKinaseContainer" class="ms-4 mt-2" style="display: none;">
+        <div class="form-group">
+          <label for="sampleSortRefKinaseSelect" class="form-label">Select Reference Kinase:</label>
+          <select class="form-select" id="sampleSortRefKinaseSelect" name="sample_sort_ref_kinase">
+            <!-- Options will be populated by sort.js -->
+            <option value="" disabled selected>Select a kinase...</option>
+          </select>
+        </div>
+      </div>
+      <!-- End Container for Selecting Reference Kinase -->
       
       <!-- Dendrogram Option for Samples -->
       <div id="samplesDendrogramOption" class="ms-4 mt-2" style="display: none;">
@@ -91,15 +105,6 @@
         </div>
       </div>
 
-      <div id="dendrogramColorContainer" class="ms-4 mt-2" style="display: none;">
-        <div class="form-group">
-          <label for="dendrogram_color" class="form-label">Dendrogram Color</label>
-          <input type="color" class="form-control form-control-color" 
-                 id="dendrogram_color" name="dendrogram_color" 
-                 value="#000000" title="Choose dendrogram color">
-        </div>
-      </div>
-      
       <div id="samplesDendrogramColorContainer" class="ms-4 mt-2" style="display: none;">
         <div class="form-group">
           <label for="samples_dendrogram_color" class="form-label">Samples Dendrogram Color</label>

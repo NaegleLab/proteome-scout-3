@@ -278,32 +278,18 @@ def update_plot():
 def download_plot():
     """
     Generate a high-quality plot file for download in the specified format.
-    
-    This endpoint creates a plot based on the current state and sends it as a downloadable
-    file in the requested format (PNG, PDF, SVG, etc.). It uses the same data and parameters
-    as the currently displayed plot, but may render at a higher resolution or with 
-    format-specific optimizations.
-    
-    Request Parameters:
-    - log_results or original_log_results: JSON string of the activity data
-    - fpr_df or original_fpr_df: JSON string of the FPR data
-    - download_format: File format (png, pdf, svg, etc.)
-    - file_name: Name for the downloaded file
-    - dpi: Resolution for raster formats
-    - Various plot settings (identical to update_plot)
-    
-    Returns:
-        Flask send_file response with the plot file for download.
-        If an error occurs, returns an error JSON response with status code 500.
+    Uses the exact same processed data that's currently displayed.
     """
     try:
-        # Get the current data from the form (current view state)
-        current_log_json = request.form.get('log_results') or request.form.get('original_log_results')
-        current_fpr_json = request.form.get('fpr_df') or request.form.get('original_fpr_df')
+        # Use the CURRENT processed data (what's actually displayed)
+        # NOT the original data with re-applied processing
+        current_log_json = request.form.get('log_results')  # Remove fallback to original
+        current_fpr_json = request.form.get('fpr_df')       # Remove fallback to original
+        
         if not current_log_json or not current_fpr_json:
-            raise ValueError("Plot data missing. Please generate plot first.")
+            raise ValueError("Current plot data missing. Please generate plot first.")
 
-        # Parse JSON data back to DataFrames
+        # Parse the EXACT data that's currently displayed
         log_results = pd.read_json(current_log_json)
         fpr_df = pd.read_json(current_fpr_json)
 
@@ -315,37 +301,15 @@ def download_plot():
         file_name = request.form.get('file_name', 'KSTAR_dotplot')
         dendrogram_settings = extract_dendrogram_settings()
         use_integrated_plot = parse_bool(request.form.get('useIntegratedPlot', 'true'))
-        
-        # Set evidence and context flags to False (feature removed)
-        show_evidence = False
-        add_additional_context = False
 
-        # Configure sorting settings
+        # Configure sorting settings (only for clustering, not for re-sorting)
         sort_settings = {
             'kinases_mode': request.form.get('sortKinases', 'none'),
             'samples_mode': request.form.get('sortSamples', 'none')
         }
 
-        # Apply filtering and sorting based on current UI state
-        # (Similar to update_plot but using the current state data)
-        kinase_edit_mode = request.form.get('manualKinaseEdit', 'none')
-        selected_kinases = safe_json_loads(request.form.get('kinaseSelect', '[]'), [])
-        if kinase_edit_mode == 'select' and selected_kinases:
-            log_results = log_results.loc[selected_kinases]
-            fpr_df = fpr_df.loc[selected_kinases]
-        elif kinase_edit_mode == 'remove' and selected_kinases:
-            log_results = log_results.drop(selected_kinases, errors='ignore')
-            fpr_df = fpr_df.drop(selected_kinases, errors='ignore')
-        
-        selected_samples = safe_json_loads(request.form.get('sampleSelect', '[]'), [])
-        if selected_samples:
-            log_results = log_results[selected_samples]
-            fpr_df = fpr_df[selected_samples]
-
-        # Apply sorting based on settings
-        log_results, fpr_df, _ = apply_sorting(log_results, fpr_df, None, sort_settings)
-
-        # Apply hierarchical clustering if requested, and get linkage matrices
+        # ONLY apply clustering if needed (don't re-filter or re-sort)
+        # The data is already filtered and sorted as displayed
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
             log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
         )
@@ -353,43 +317,39 @@ def download_plot():
         # Get custom column labels
         custom_xlabels = extract_custom_labels(log_results)
 
-        # Create a Matplotlib figure object for the download
-        if use_integrated_plot:
+        # Create the exact same plot as displayed
+        if use_integrated_plot and (row_linkage is not None or col_linkage is not None):
             fig = create_integrated_plot(
                 log_results, fpr_df,
-                row_linkage=row_linkage,  # Pass linkage matrices explicitly
+                row_linkage=row_linkage,
                 col_linkage=col_linkage,
-                download=True,  # Flag to return Figure object rather than base64
+                download=True,
                 binary_sig=binary_sig,
                 custom_xlabels=custom_xlabels,
                 **plot_params, **plot_settings, **dendrogram_settings
             )
         else:
-            # Create a simple dot plot
             fig = create_dot_plot(
-                log_results,
-                fpr_df,
+                log_results, fpr_df,
                 binary_sig=binary_sig,
                 custom_xlabels=custom_xlabels,
-                download=True,  # Flag to return Figure object rather than base64
+                download=True,
                 **plot_params, **plot_settings
             )
 
-        # Save the figure to a BytesIO buffer in the requested format
+        # Save and return the file
         output = BytesIO()
-        dpi = int(request.form.get('dpi', 300))  # Higher DPI for downloads
+        dpi = int(request.form.get('dpi', 300))
         bg_color = plot_params.get('background_color', '#ffffff')
         fig.savefig(output, format=download_format, dpi=dpi, bbox_inches='tight', facecolor=bg_color)
-        plt.close(fig)  # Close the figure to free memory
-        output.seek(0)  # Rewind the buffer
+        plt.close(fig)
+        output.seek(0)
 
-        # Define MIME types for different file formats
         mime_types = {
             'png': 'image/png', 'jpg': 'image/jpeg', 'pdf': 'application/pdf',
             'svg': 'image/svg+xml', 'eps': 'application/postscript', 'tif': 'image/tiff'
         }
 
-        # Send the file as an attachment with the appropriate MIME type
         return send_file(
             output,
             mimetype=mime_types.get(download_format, 'application/octet-stream'),

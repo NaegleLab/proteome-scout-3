@@ -61,16 +61,38 @@ function getUpdateFormData() {
   }
 
   // Sorting options
-  formData.append('sortKinases', document.querySelector('input[name="sortKinases"]:checked').value);
-  formData.append('sortSamples', document.querySelector('input[name="sortSamples"]:checked').value);
+  const sortKinasesMode = document.querySelector('input[name="sortKinases"]:checked').value;
+  formData.append('sortKinases', sortKinasesMode);
+
+  const sortSamplesModeRadio = document.querySelector('input[name="sortSamples"]:checked');
+  if (sortSamplesModeRadio) {
+    const sortSamplesMode = sortSamplesModeRadio.value;
+    formData.append('sortSamples', sortSamplesMode);
+
+    // If sorting samples by a selected kinase, get the selected kinase
+    if (sortSamplesMode.startsWith('by_selected_kinase_')) {
+      const sampleSortRefKinaseSelect = document.getElementById('sampleSortRefKinaseSelect');
+      if (sampleSortRefKinaseSelect && sampleSortRefKinaseSelect.value) {
+        formData.append('sample_sort_ref_kinase', sampleSortRefKinaseSelect.value);
+        console.log('Appending sample_sort_ref_kinase:', sampleSortRefKinaseSelect.value);
+      } else {
+        console.warn('Sample sort mode is by_selected_kinase_ but sampleSortRefKinaseSelect is missing or has no value.');
+        // Optionally, you could send 'none' or revert sortSamples to 'none' if the kinase isn't selected
+        // formData.set('sortSamples', 'none'); 
+      }
+    }
+  } else {
+    formData.append('sortSamples', 'none'); // Default if no radio is checked (should not happen with proper HTML)
+  }
+
 
   // Manual kinase order
-  if (document.querySelector('input[name="sortKinases"]:checked').value === 'manual') {
+  if (sortKinasesMode === 'manual') {
     const manualKinaseOrder = document.getElementById('manualKinaseOrderJSON').value;
     if (manualKinaseOrder) formData.append('manualKinaseOrder', manualKinaseOrder);
   }
 
-  // *** ADD THIS LINE ***
+
   formData.append('restrictKinases', document.getElementById('restrictKinases').checked);
 
   return formData;
@@ -229,15 +251,15 @@ function exportSpecificData(dataType, userFileNameParam) {
   const exportFormat = document.getElementById('exportTsv').checked ? 'tsv' : 'csv';
   formData.append('export_format', exportFormat);
   
-  // *** ADDED: Check and send custom labels ***
+  //Check and send custom labels ***
   const changeXLabel = document.getElementById('changeXLabel')?.checked;
-  formData.append('changeXLabel', changeXLabel || false); // Send boolean flag
+  formData.append('changeXLabel', changeXLabel || false); 
   if (changeXLabel) {
     const customLabels = {};
     document.querySelectorAll('.custom-label-input').forEach(input => {
       const sample = input.dataset.sample; // Original sample name from data-* attribute
       const newLabel = input.value.trim();
-      if (sample && newLabel) { // Only include if there's a new label
+      if (sample && newLabel) { 
         customLabels[sample] = newLabel;
       }
     });
@@ -252,13 +274,12 @@ function exportSpecificData(dataType, userFileNameParam) {
   } else {
       console.log("Change X Label not checked for export.");
   }
-  // *** END ADDED SECTION ***
 
   // Add file name if specified
   const userFileName = userFileNameParam || document.getElementById('exportFileName')?.value.trim() || 'KSTAR';
-  formData.append('file_name', userFileName); // Use corrected ID 'exportFileName'
+  formData.append('file_name', userFileName); 
 
-  // These are the keys the backend is expecting
+  
   formData.append('log_results', logJSON);
   formData.append('fpr_df', fprJSON);
 
@@ -273,7 +294,7 @@ function exportSpecificData(dataType, userFileNameParam) {
       const a = document.createElement('a');
       a.href = url;
       // Use the custom filename if provided
-      const baseFilename = userFileName; // Already determined above
+      const baseFilename = userFileName; 
       let downloadFilename;
       if (dataType === 'both') {
         downloadFilename = `${baseFilename}_data_export.zip`;
@@ -296,34 +317,11 @@ function updateKinaseSelect() {
   if (mode === 'none') return;
   
   const select = $('#kinaseSelect');
-  const currentSelection = select.val() || []; // Preserve current selection
+  const currentSelection = select.val() || []; 
   select.empty();
 
-  // Determine which kinases to show based on restrict setting
-  const restrictCheckbox = document.getElementById('restrictKinases');
-  const isRestricted = restrictCheckbox ? restrictCheckbox.checked : false;
-  let kinasesToShow = window.availableKinases || [];
-
-  if (isRestricted && window.plotActive) {
-    // If restricted and plot is active, get kinases from current log_results
-    const logResultsJson = document.getElementById('logResultsJSON')?.value;
-    if (logResultsJson) {
-      try {
-        const logResultsData = JSON.parse(logResultsJson);
-        const sampleNames = Object.keys(logResultsData);
-        if (sampleNames.length > 0) {
-          const firstSample = logResultsData[sampleNames[0]];
-          if (firstSample && typeof firstSample === 'object') {
-            kinasesToShow = Object.keys(firstSample);
-          }
-        }
-      } catch (e) {
-        kinasesToShow = [];
-      }
-    } else {
-      kinasesToShow = [];
-    }
-  }
+  // Use the same logic as getDisplayableKinases for consistency
+  const kinasesToShow = window.getDisplayableKinases();
 
   // Populate dropdown with appropriate kinases
   kinasesToShow.forEach(k => select.append(new Option(k, k)));
@@ -337,6 +335,14 @@ function updateKinaseSelect() {
     allowClear: true,
     width: '100%'
   });
+
+  // Also refresh sort dropdowns when kinase list changes
+  if (typeof window.updateSortableKinaseList === 'function') {
+    window.updateSortableKinaseList();
+  }
+  if (typeof window.updateSampleSortKinaseDropdown === 'function') {
+    window.updateSampleSortKinaseDropdown();
+  }
 }
 
 function updateSampleSelect() {
@@ -399,6 +405,30 @@ function handleFileInputs() {
     })
     .catch(err => alert('Error processing files: ' + (err.error||err.message)));
 }
+
+// Add this function after your global variables at the top
+window.getDisplayableKinases = function() {
+  const restrictCheckbox = document.getElementById('restrictKinases');
+  const isRestricted = restrictCheckbox ? restrictCheckbox.checked : false;
+  
+  if (isRestricted && window.plotActive) {
+    const logResultsJson = document.getElementById('logResultsJSON')?.value;
+    if (logResultsJson) {
+      try {
+        const logResultsData = JSON.parse(logResultsJson);
+        const sampleNames = Object.keys(logResultsData);
+        if (sampleNames.length > 0) {
+          const firstSample = logResultsData[sampleNames[0]];
+          return firstSample ? Object.keys(firstSample).sort() : [];
+        }
+      } catch (e) {
+        console.error('Error parsing logResultsJSON:', e);
+      }
+    }
+    return [];
+  }
+  return (window.availableKinases || []).slice().sort();
+};
 
 // DOM ready setup
 document.addEventListener('DOMContentLoaded', () => {
@@ -464,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add export route to KSTAR config if available
   if (typeof KSTAR !== 'undefined' && KSTAR.config && KSTAR.config.routes && KSTAR.config.routes.plot) {
     KSTAR.config.routes.export = KSTAR.config.routes.plot + '/export'; // e.g., /kstar/plot + /export
-    console.log('Set KSTAR export route to:', KSTAR.config.routes.export); // Add for debugging
+    console.log('Set KSTAR export route to:', KSTAR.config.routes.export); 
   } else {
     console.warn('KSTAR config or routes not fully defined for setting export route.');
   }

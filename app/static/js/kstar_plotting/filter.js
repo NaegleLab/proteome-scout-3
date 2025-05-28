@@ -64,8 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (restrictKinasesCheckbox) {
         restrictKinasesCheckbox.addEventListener('change', function() {
             if (window.plotActive) {
-                // Decide if a full submit or dynamic update is needed/preferred
-                window.submitForm(); // or window.updatePlotDynamically();
+                window.submitForm(); 
             }
         });
     }
@@ -74,8 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="significantActivity"]').forEach(radio => {
         radio.addEventListener('change', function() {
             if (window.plotActive) {
-                // Decide if a full submit or dynamic update is needed/preferred
-                window.submitForm(); // or window.updatePlotDynamically();
+                window.submitForm(); 
             }
         });
     });
@@ -123,7 +121,6 @@ function populateCustomLabelsInputs() {
             }
         });
         
-        // Optional: Add debounced input handler for real-time updates
         let timeout;
         input.addEventListener('input', function() {
             clearTimeout(timeout);
