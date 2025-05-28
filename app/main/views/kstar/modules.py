@@ -136,45 +136,75 @@ def extract_custom_labels(log_results: pd.DataFrame):
 def apply_sorting(log_results: pd.DataFrame, fpr_df: pd.DataFrame, binary_evidence_df, sort_settings: Dict[str, str]):
     """
     Apply manual or activity-based sorting to the provided data frames.
-    
-    Parameters:
-        log_results: Activity data DataFrame
-        fpr_df: FPR data DataFrame
-        binary_evidence_df: Evidence DataFrame (optional)
-        sort_settings: Dictionary with sorting modes
-        
-    Returns:
-        Tuple of sorted DataFrames (log_results, fpr_df, binary_evidence_df)
+    Samples can be sorted by a user-selected reference kinase.
     """
-    for mode_key, axis in [('kinases_mode', 0), ('samples_mode', 1)]:
-        mode_value = sort_settings.get(mode_key, 'none')
-        if mode_key == 'kinases_mode' and mode_value == 'manual':
-            manual_order_json = request.form.get('manualKinaseOrder')
-            if manual_order_json:
-                try:
-                    manual_order = json.loads(manual_order_json)
-                    if manual_order and all(k in log_results.index for k in manual_order):
-                        log_results = log_results.reindex(manual_order)
-                        fpr_df = fpr_df.reindex(manual_order)
-                        if binary_evidence_df is not None:
-                            binary_evidence_df = binary_evidence_df.reindex(manual_order)
-                except json.JSONDecodeError:
-                    logger.error("Invalid manual kinase order JSON: %s", manual_order_json)
-        elif mode_value.startswith('by_activity_'):
-            ascending = mode_value.endswith('_asc')
-            if axis == 0 and not log_results.empty:
-                sort_by = log_results.columns[0]
-                log_results = log_results.sort_values(by=sort_by, ascending=ascending)
-                fpr_df = fpr_df.reindex(log_results.index)
-                if binary_evidence_df is not None:
-                    binary_evidence_df = binary_evidence_df.reindex(log_results.index)
-            elif axis == 1 and not log_results.empty:
-                sort_by = log_results.index[0]
-                sorted_cols = log_results.loc[sort_by].sort_values(ascending=ascending).index
-                log_results = log_results[sorted_cols]
-                fpr_df = fpr_df[sorted_cols]
-                if binary_evidence_df is not None:
-                    binary_evidence_df = binary_evidence_df[sorted_cols]
+    
+    # --- Step 1: Apply Kinase Sorting ---
+    kinase_sort_mode = sort_settings.get('kinases_mode', 'none')
+    logger.debug(f"Applying kinase sort mode: {kinase_sort_mode}")
+    
+    if kinase_sort_mode == 'manual':
+        manual_order_json = request.form.get('manualKinaseOrder')
+        if manual_order_json:
+            try:
+                manual_order = json.loads(manual_order_json)
+                valid_manual_order = [k for k in manual_order if k in log_results.index]
+                if valid_manual_order:
+                    log_results = log_results.reindex(valid_manual_order)
+                    fpr_df = fpr_df.reindex(valid_manual_order)
+                    if binary_evidence_df is not None:
+                        binary_evidence_df = binary_evidence_df.reindex(valid_manual_order)
+            except json.JSONDecodeError:
+                logger.error("Invalid manual kinase order JSON: %s", manual_order_json)
+    elif kinase_sort_mode.startswith('by_activity_'):
+        ascending_kinases = kinase_sort_mode.endswith('_asc')
+        if not log_results.empty and log_results.shape[1] > 0:
+            sort_by_kinase_col = log_results.columns[0]
+            log_results = log_results.sort_values(by=sort_by_kinase_col, ascending=ascending_kinases)
+            fpr_df = fpr_df.reindex(log_results.index)
+            if binary_evidence_df is not None:
+                binary_evidence_df = binary_evidence_df.reindex(log_results.index)
+
+    # --- Step 2: Apply Sample Sorting ---
+    sample_sort_mode = sort_settings.get('samples_mode', 'none')
+    logger.debug(f"Applying sample sort mode: {sample_sort_mode}")
+    
+    if sample_sort_mode.startswith('by_selected_kinase_'): # e.g., 'by_selected_kinase_asc' or 'by_selected_kinase_desc'
+        # Get the kinase name selected by the user from the form
+        # We'll need to ensure the frontend sends this parameter.
+        selected_ref_kinase = request.form.get('sample_sort_ref_kinase') 
+        
+        if not selected_ref_kinase:
+            logger.warning("Sample sort mode is 'by_selected_kinase' but 'sample_sort_ref_kinase' parameter is missing. Skipping sample sort.")
+        elif selected_ref_kinase not in log_results.index:
+            logger.warning(
+                f"Selected reference kinase '{selected_ref_kinase}' for sample sorting not found in data. "
+                f"Available kinases: {list(log_results.index)}. Skipping sample sort."
+            )
+        elif not log_results.empty:
+            ascending_samples = sample_sort_mode.endswith('_asc')
+            
+            logger.debug(f"Sample sorting by user-selected reference kinase: '{selected_ref_kinase}', ascending: {ascending_samples}")
+            logger.debug(f"Values for '{selected_ref_kinase}': {log_results.loc[selected_ref_kinase].to_dict()}")
+            
+            original_cols = list(log_results.columns)
+            sorted_cols_series = log_results.loc[selected_ref_kinase].sort_values(ascending=ascending_samples)
+            sorted_cols = list(sorted_cols_series.index)
+            
+            if original_cols == sorted_cols:
+                logger.debug(f"Sample order unchanged. Data for '{selected_ref_kinase}' might be uniform or already sorted.")
+            else:
+                logger.debug(f"Sample order changed. New order: {sorted_cols}")
+
+            log_results = log_results[sorted_cols]
+            fpr_df = fpr_df[sorted_cols]
+            if binary_evidence_df is not None:
+                binary_evidence_df = binary_evidence_df[sorted_cols]
+        else:
+            logger.debug("Sample sorting by selected kinase skipped: DataFrame is empty.")
+            
+    # Add other sample sort modes here if needed (e.g., 'by_clustering' if you re-implement it here)
+            
     return log_results, fpr_df, binary_evidence_df
 
 # --- Decorators ---

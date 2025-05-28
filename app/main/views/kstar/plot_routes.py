@@ -195,12 +195,20 @@ def update_plot():
         # Parse JSON data back to DataFrames
         log_results = pd.read_json(orig_log_json)
         fpr_df = pd.read_json(orig_fpr_json)
+
+        binary_evidence_df = None 
         
         # Extract plot configuration parameters
         plot_params = extract_plot_params()
         plot_settings = extract_plot_settings()
         binary_sig = (request.form.get('significantActivity', 'binary') == 'binary')
         dendrogram_settings = extract_dendrogram_settings()
+
+        # Apply significance-based filtering if requested
+        if parse_bool(request.form.get('restrictKinases', 'false')):
+            log_results, fpr_df, binary_evidence_df = filter_significant_kinases(
+                log_results, fpr_df, binary_evidence_df
+            )
         
         # Apply kinase filtering (select or remove mode)
         kinase_edit_mode = request.form.get('manualKinaseEdit', 'none')
@@ -220,43 +228,22 @@ def update_plot():
             log_results = log_results[selected_samples]
             fpr_df = fpr_df[selected_samples]
         
-        # Get custom column labels
-        custom_xlabels = extract_custom_labels(log_results)
-        
         # Configure sorting settings
         sort_settings = {
             'kinases_mode': request.form.get('sortKinases', 'none'),
             'samples_mode': request.form.get('sortSamples', 'none')
         }
         
-        # Apply manual kinase ordering if requested
-        if sort_settings.get('kinases_mode') == 'manual':
-            manual_order = safe_json_loads(request.form.get('manualKinaseOrder', '[]'), [])
-            if manual_order and all(k in log_results.index for k in manual_order):
-                log_results = log_results.reindex(manual_order)
-                fpr_df = fpr_df.reindex(manual_order)
-        
-        # Apply activity-based kinase sorting
-        if sort_settings.get('kinases_mode', '').startswith('by_activity_'):
-            ascending = sort_settings['kinases_mode'].endswith('_asc')
-            if not log_results.empty:
-                sample_to_sort_by = log_results.columns[0]
-                log_results = log_results.sort_values(by=sample_to_sort_by, ascending=ascending)
-                fpr_df = fpr_df.reindex(log_results.index)
-                
-        # Apply activity-based sample sorting
-        if sort_settings.get('samples_mode', '').startswith('by_activity_'):
-            ascending = sort_settings['samples_mode'].endswith('_asc')
-            if not log_results.empty:
-                kinase_to_sort_by = log_results.index[0]
-                sorted_cols = log_results.loc[kinase_to_sort_by].sort_values(ascending=ascending).index
-                log_results = log_results[sorted_cols]
-                fpr_df = fpr_df[sorted_cols]
-        
-        # Apply hierarchical clustering if requested, and get linkage matrices
+        # Apply non-hierarchical sorting using the common function
+        log_results, fpr_df, _ = apply_sorting(log_results, fpr_df, None, sort_settings) # Pass None for binary_evidence_df if not modified by this sort
+
+        # Apply hierarchical clustering if requested
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
-            log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
+            log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings # Pass None for binary_evidence_df
         )
+
+        # Get custom column labels
+        custom_xlabels = extract_custom_labels(log_results)
         
         # Determine whether to use integrated plot with dendrograms
         use_integrated_plot = parse_bool(request.form.get('useIntegratedPlot', 'true'))
@@ -291,32 +278,18 @@ def update_plot():
 def download_plot():
     """
     Generate a high-quality plot file for download in the specified format.
-    
-    This endpoint creates a plot based on the current state and sends it as a downloadable
-    file in the requested format (PNG, PDF, SVG, etc.). It uses the same data and parameters
-    as the currently displayed plot, but may render at a higher resolution or with 
-    format-specific optimizations.
-    
-    Request Parameters:
-    - log_results or original_log_results: JSON string of the activity data
-    - fpr_df or original_fpr_df: JSON string of the FPR data
-    - download_format: File format (png, pdf, svg, etc.)
-    - file_name: Name for the downloaded file
-    - dpi: Resolution for raster formats
-    - Various plot settings (identical to update_plot)
-    
-    Returns:
-        Flask send_file response with the plot file for download.
-        If an error occurs, returns an error JSON response with status code 500.
+    Uses the exact same processed data that's currently displayed.
     """
     try:
-        # Get the current data from the form (current view state)
-        current_log_json = request.form.get('log_results') or request.form.get('original_log_results')
-        current_fpr_json = request.form.get('fpr_df') or request.form.get('original_fpr_df')
+        # Use the CURRENT processed data (what's actually displayed)
+        # NOT the original data with re-applied processing
+        current_log_json = request.form.get('log_results')  # Remove fallback to original
+        current_fpr_json = request.form.get('fpr_df')       # Remove fallback to original
+        
         if not current_log_json or not current_fpr_json:
-            raise ValueError("Plot data missing. Please generate plot first.")
+            raise ValueError("Current plot data missing. Please generate plot first.")
 
-        # Parse JSON data back to DataFrames
+        # Parse the EXACT data that's currently displayed
         log_results = pd.read_json(current_log_json)
         fpr_df = pd.read_json(current_fpr_json)
 
@@ -328,81 +301,55 @@ def download_plot():
         file_name = request.form.get('file_name', 'KSTAR_dotplot')
         dendrogram_settings = extract_dendrogram_settings()
         use_integrated_plot = parse_bool(request.form.get('useIntegratedPlot', 'true'))
-        
-        # Set evidence and context flags to False (feature removed)
-        show_evidence = False
-        add_additional_context = False
 
-        # Configure sorting settings
+        # Configure sorting settings (only for clustering, not for re-sorting)
         sort_settings = {
             'kinases_mode': request.form.get('sortKinases', 'none'),
             'samples_mode': request.form.get('sortSamples', 'none')
         }
 
-        # Get custom column labels
-        custom_xlabels = extract_custom_labels(log_results)
-
-        # Apply filtering and sorting based on current UI state
-        # (Similar to update_plot but using the current state data)
-        kinase_edit_mode = request.form.get('manualKinaseEdit', 'none')
-        selected_kinases = safe_json_loads(request.form.get('kinaseSelect', '[]'), [])
-        if kinase_edit_mode == 'select' and selected_kinases:
-            log_results = log_results.loc[selected_kinases]
-            fpr_df = fpr_df.loc[selected_kinases]
-        elif kinase_edit_mode == 'remove' and selected_kinases:
-            log_results = log_results.drop(selected_kinases, errors='ignore')
-            fpr_df = fpr_df.drop(selected_kinases, errors='ignore')
-        
-        selected_samples = safe_json_loads(request.form.get('sampleSelect', '[]'), [])
-        if selected_samples:
-            log_results = log_results[selected_samples]
-            fpr_df = fpr_df[selected_samples]
-
-        # Apply sorting based on settings
-        log_results, fpr_df, _ = apply_sorting(log_results, fpr_df, None, sort_settings)
-
-        # Apply hierarchical clustering if requested, and get linkage matrices
+        # ONLY apply clustering if needed (don't re-filter or re-sort)
+        # The data is already filtered and sorted as displayed
         log_results, fpr_df, _, row_linkage, col_linkage = handle_clustering_for_plot(
             log_results, fpr_df, None, sort_settings, plot_params, dendrogram_settings
         )
 
-        # Create a Matplotlib figure object for the download
-        if use_integrated_plot:
+        # Get custom column labels
+        custom_xlabels = extract_custom_labels(log_results)
+
+        # Create the exact same plot as displayed
+        if use_integrated_plot and (row_linkage is not None or col_linkage is not None):
             fig = create_integrated_plot(
                 log_results, fpr_df,
-                row_linkage=row_linkage,  # Pass linkage matrices explicitly
+                row_linkage=row_linkage,
                 col_linkage=col_linkage,
-                download=True,  # Flag to return Figure object rather than base64
+                download=True,
                 binary_sig=binary_sig,
                 custom_xlabels=custom_xlabels,
                 **plot_params, **plot_settings, **dendrogram_settings
             )
         else:
-            # Create a simple dot plot
             fig = create_dot_plot(
-                log_results,
-                fpr_df,
+                log_results, fpr_df,
                 binary_sig=binary_sig,
                 custom_xlabels=custom_xlabels,
-                download=True,  # Flag to return Figure object rather than base64
+                download=True,
                 **plot_params, **plot_settings
             )
 
-        # Save the figure to a BytesIO buffer in the requested format
+        # Save and return the file
         output = BytesIO()
-        dpi = int(request.form.get('dpi', 300))  # Higher DPI for downloads
+        dpi = int(request.form.get('dpi', 300))
         bg_color = plot_params.get('background_color', '#ffffff')
         fig.savefig(output, format=download_format, dpi=dpi, bbox_inches='tight', facecolor=bg_color)
-        plt.close(fig)  # Close the figure to free memory
-        output.seek(0)  # Rewind the buffer
+        plt.close(fig)
+        output.seek(0)
 
-        # Define MIME types for different file formats
         mime_types = {
             'png': 'image/png', 'jpg': 'image/jpeg', 'pdf': 'application/pdf',
             'svg': 'image/svg+xml', 'eps': 'application/postscript', 'tif': 'image/tiff'
         }
 
-        # Send the file as an attachment with the appropriate MIME type
         return send_file(
             output,
             mimetype=mime_types.get(download_format, 'application/octet-stream'),
