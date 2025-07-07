@@ -3,13 +3,15 @@ import os
 from flask_sqlalchemy import SQLAlchemy
 import csv
 
-# Allows for the importing of modules from the proteomescout-3 app within the script
-#SCRIPT_DIR = '/Users/saqibrizvi/Documents/NaegleLab/ProteomeScout-3/proteomescout-3'
-SCRIPT_DIR = '/Users/kmn4mj/GIT/public/proteome-scout-3'
-sys.path.append(SCRIPT_DIR)
+# Get the absolute path to the current file
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SCRIPT_DIR2 = '/Users/kmn4mj/GIT/public/proteome-scout-3/scripts/schema'
-sys.path.append(SCRIPT_DIR2)
+# Path to the root of proteome-scout-3
+PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
+
+# Add proteome-scout-3 and scripts/schema to sys.path
+sys.path.append(PROJECT_ROOT)
+sys.path.append(CURRENT_DIR)
 
 
 from scripts.app_setup import create_app
@@ -19,6 +21,7 @@ from app.database import protein, modifications, experiment
 from app.utils.downloadutils import experiment_metadata_to_tsv, zip_package
 
 from FlaskSchemaReporter import FlaskSchemaReporter
+import pathlib
 
 # directory variable to be imported
 OUTPUT_DIR = "scripts/output"
